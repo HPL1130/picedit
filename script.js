@@ -217,4 +217,149 @@ document.addEventListener('DOMContentLoaded', () => {
         
         canvas.add(newText);
         canvas.setActiveObject(newText);
-        canvas.render
+        canvas.renderAll();
+        
+        canvas.fire('selection:created', { target: newText }); 
+    }
+    
+    // [最終修復點] 核心函數：loadImageToCanvas
+    function loadImageToCanvas(imgSource) {
+        initializeCanvas(); 
+
+        placeholder.style.display = 'block'; 
+        loadingIndicator.style.display = 'block'; 
+        placeholder.textContent = '正在載入圖片並初始化...';
+
+
+        fabric.Image.fromURL(imgSource, function(img) {
+            
+            // 載入成功，立即隱藏指示器
+            loadingIndicator.style.display = 'none'; 
+            
+            originalImage = img;
+            
+            canvas.setDimensions({ 
+                width: img.width, 
+                height: img.height 
+            });
+
+            canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), {
+                scaleX: 1, 
+                scaleY: 1
+            });
+            
+            // 載入圖片後，自動新增第一個文字物件
+            addNewTextObject(); 
+            
+            downloadBtn.disabled = false;
+            
+            // [關鍵修復] 無論如何，最後強制隱藏佔位符
+            placeholder.style.display = 'none'; 
+
+        }, { 
+            crossOrigin: 'anonymous', 
+            onError: function(err) {
+                loadingIndicator.style.display = 'none'; 
+                console.error("Fabric.js 載入 Base64 數據失敗！", err);
+                placeholder.textContent = "👆 載入失敗！請確認圖片格式 (PNG/JPG) 及檔案大小 (建議小於 5MB)。";
+            }
+        }); 
+    }
+
+    // --- 事件監聽器與初始化 (保持不變) ---
+
+    document.fonts.ready.then(() => {
+        fontsLoaded = true;
+        initializeCanvas(); 
+        checkLocalStorage();
+    }).catch(err => {
+        initializeCanvas();
+        checkLocalStorage(); 
+    });
+
+    imageLoader.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (file.size > 5 * 1024 * 1024) {
+            alert("警告：圖片檔案超過 5MB，手機上可能載入失敗。請嘗試較小的圖片。");
+        }
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            if (fontsLoaded) {
+                loadImageToCanvas(event.target.result); 
+            } else {
+                alert("字體資源尚未載入完成，請稍後再試。");
+            }
+        };
+        reader.readAsDataURL(file);
+    });
+
+    [
+        textInput, fontFamilyControl, fontSizeControl, fontWeightControl, fontColorControl, 
+        textOrientationControl, charSpacingControl, opacityControl 
+    ].forEach(control => {
+        control.addEventListener('input', updateActiveObjectProperties);
+        control.addEventListener('change', updateActiveObjectProperties);
+    });
+
+    addTextBtn.addEventListener('click', addNewTextObject);
+    
+    bringToFrontBtn.addEventListener('click', () => {
+        const activeObject = canvas.getActiveObject();
+        if (activeObject) {
+            canvas.bringToFront(activeObject);
+            canvas.renderAll();
+        }
+    });
+
+    sendToBackBtn.addEventListener('click', () => {
+        const activeObject = canvas.getActiveObject();
+        if (activeObject) {
+            const backgroundObject = canvas.getObjects()[0];
+            if (activeObject !== backgroundObject) {
+                 canvas.sendBackwards(activeObject, true);
+                 canvas.renderAll();
+            }
+        }
+    });
+
+    deleteTextBtn.addEventListener('click', () => {
+        const activeObject = canvas.getActiveObject();
+        if (activeObject && confirm("確定要移除選中的物件嗎？")) {
+            canvas.remove(activeObject);
+            canvas.renderAll();
+            canvas.discardActiveObject();
+            toggleControls(null);
+        }
+    });
+
+    saveStateBtn.addEventListener('click', saveCanvasState);
+    loadStateBtn.addEventListener('click', loadCanvasState);
+
+    downloadBtn.addEventListener('click', () => {
+        if (!originalImage) {
+            alert("請先上傳圖片！");
+            return;
+        }
+        
+        canvas.discardActiveObject(); 
+        canvas.renderAll();
+
+        const format = downloadFormatControl.value; 
+        let fileExtension = format.split('/')[1];
+
+        const dataURL = canvas.toDataURL({
+            format: fileExtension,
+            quality: fileExtension === 'jpeg' ? 0.9 : 1.0
+        }); 
+
+        const link = document.createElement('a');
+        link.download = `圖像創意文字-${Date.now()}.${fileExtension}`; 
+        link.href = dataURL;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    });
+});
