@@ -52,4 +52,42 @@
                 </div>
                  <div class="control-item">
                     <label for="fontWeight">粗體：</label>
-                    <select id="
+                    <select id="fontWeight">
+                        <option value="normal">正常</option>
+                        <option value="bold">粗體</option>
+                    </select>
+                </div>
+                <div class="control-item">
+                    <label for="textOrientation">排版：</label>
+                    <select id="textOrientation">
+                        <option value="horizontal">橫式</option>
+                        <option value="vertical">直式 (從上往下)</option> 
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="canvas-wrapper">
+            <canvas id="imageCanvas"></canvas>
+            
+            <p id="canvasPlaceholder">
+                👆 請先選擇一張圖片，然後點擊文字進行拖曳
+                <span id="loadingIndicator" style="display: none; margin-top: 10px; font-weight: bold; display: block;">
+                    正在載入圖片並初始化... (需數秒)
+                </span>
+            </p>
+        </div>
+
+        <div class="control-group download-area">
+            <label for="downloadFormat">存檔格式：</label>
+            <select id="downloadFormat">
+                <option value="image/png">PNG (推薦，無失真)</option>
+                <option value="image/jpeg">JPEG (檔案小)</option>
+            </select>
+            <button id="downloadBtn" disabled>下載製作好的圖片</button>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
