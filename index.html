@@ -47,26 +47,34 @@
                     <label for="fontSize">文字大小：</label>
                     <input type="number" id="fontSize" min="10" max="150" value="48">
                 </div>
-            </div>
-
-            <div class="controls-row">
                 <div class="control-item">
                     <label for="fontColor">文字顏色：</label>
                     <input type="color" id="fontColor" value="#ffffff">
                 </div>
-                 <div class="control-item">
+                <div class="control-item">
                     <label for="fontWeight">粗體：</label>
                     <select id="fontWeight">
                         <option value="normal">正常</option>
                         <option value="bold">粗體</option>
                     </select>
                 </div>
+            </div>
+
+            <div class="controls-row">
                 <div class="control-item">
                     <label for="textOrientation">排版：</label>
                     <select id="textOrientation">
                         <option value="horizontal">橫式</option>
                         <option value="vertical">直式 (旋轉模擬)</option> 
                     </select>
+                </div>
+                <div class="control-item">
+                    <label for="charSpacing">字體間距 (px)：</label>
+                    <input type="range" id="charSpacing" min="0" max="200" value="0">
+                </div>
+                <div class="control-item">
+                    <label for="opacity">透明度 (0-100)：</label>
+                    <input type="range" id="opacity" min="0" max="100" value="100">
                 </div>
             </div>
         </div>
@@ -90,17 +98,4 @@
             </select>
             
             <div class="controls-row" style="margin-top: 10px;">
-                <button id="saveStateBtn" style="flex: 1; padding: 10px; background-color: #ffc107; color: #333; border: none; border-radius: 4px; cursor: pointer;">
-                    💾 暫存編輯狀態
-                </button>
-                <button id="loadStateBtn" disabled style="flex: 1; padding: 10px; background-color: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                    📂 載入暫存狀態
-                </button>
-            </div>
-            <button id="downloadBtn" disabled style="margin-top: 10px;">下載製作好的圖片</button>
-        </div>
-    </div>
-    
-    <script src="script.js"></script>
-</body>
-</html>
+                <button id="saveStateBtn" style="flex: 1; padding: 10px; background-color: #ffc107; color: #333; border: none; border
