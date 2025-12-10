@@ -45,7 +45,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isText) {
              syncControlsFromObject(activeObject);
         } else {
-            textInput.value = '';
+            // 如果沒有選中物件，將文字輸入框設為提示語
+            textInput.value = '請選中 Canvas 上的物件進行編輯'; 
         }
     }
 
@@ -96,9 +97,10 @@ document.addEventListener('DOMContentLoaded', () => {
         canvas.loadFromJSON(json, function() {
             canvas.renderAll();
             loadingIndicator.style.display = 'none'; 
-            placeholder.style.display = 'none'; // [修復點] 載入成功後隱藏佔位符
+            placeholder.style.display = 'none';
             downloadBtn.disabled = false;
             
+            // 嘗試選中第一個文字物件，並同步控制項
             const firstTextObj = canvas.getObjects().find(obj => obj.type === 'text');
             if (firstTextObj) {
                 canvas.setActiveObject(firstTextObj);
@@ -118,8 +120,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- 核心與初始化函數 (保持不變) ---
+    // --- 核心與初始化函數 ---
     
+    // [修復點 1] initializeCanvas: 調整初始顯示內容
     function initializeCanvas() {
         const canvasElement = document.getElementById('imageCanvas');
         
@@ -145,11 +148,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         
         placeholder.style.display = 'block'; 
+        // 關鍵修復：未載入圖片時，不顯示「正在載入」
         placeholder.innerHTML = fontsLoaded 
             ? '👆 請先選擇一張圖片，然後點擊文字進行拖曳'
-            : '正在載入字體，請稍候...';
+            : '正在載入字體，請稍候...'; // 僅在載入字體時顯示載入
             
-        loadingIndicator.style.display = 'none'; 
+        loadingIndicator.style.display = 'none'; // 預設隱藏載入指示器
         originalImage = null;
         downloadBtn.disabled = true;
         
@@ -223,12 +227,14 @@ document.addEventListener('DOMContentLoaded', () => {
         canvas.fire('selection:created', { target: newText }); 
     }
     
-    // [修復點] 核心函數：載入圖片到 Canvas
+    // [修復點 2] 核心函數：loadImageToCanvas
     function loadImageToCanvas(imgSource) {
+        // 每次載入圖片前，都要重置 Canvas
         initializeCanvas(); 
 
         placeholder.style.display = 'block'; 
         loadingIndicator.style.display = 'block'; 
+        // 載入圖片時才顯示具體的載入訊息
         placeholder.textContent = '正在載入圖片並初始化...';
 
 
@@ -251,7 +257,7 @@ document.addEventListener('DOMContentLoaded', () => {
             addNewTextObject(); 
             
             downloadBtn.disabled = false;
-            // [關鍵修復] 載入成功並新增物件後，隱藏佔位符
+            // 載入成功並新增物件後，隱藏佔位符
             placeholder.style.display = 'none'; 
 
         }, { 
@@ -264,10 +270,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }); 
     }
 
-    // --- 事件監聽器與初始化 (保持不變) ---
+    // --- 事件監聽器與初始化 ---
 
+    // 1. [Web Font] 等待字體載入完成，再進行初始化
     document.fonts.ready.then(() => {
         fontsLoaded = true;
+        // 字體載入完畢後，初始化 Canvas
         initializeCanvas(); 
         checkLocalStorage();
     }).catch(err => {
@@ -275,6 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
         checkLocalStorage(); 
     });
 
+    // 2. 處理使用者上傳圖片
     imageLoader.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -294,6 +303,7 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.readAsDataURL(file);
     });
 
+    // 3. 綁定控制項事件 (保持不變)
     [
         textInput, fontFamilyControl, fontSizeControl, fontWeightControl, fontColorControl, 
         textOrientationControl, charSpacingControl, opacityControl 
@@ -301,7 +311,8 @@ document.addEventListener('DOMContentLoaded', () => {
         control.addEventListener('input', updateActiveObjectProperties);
         control.addEventListener('change', updateActiveObjectProperties);
     });
-    
+
+    // 4. 圖層控制事件 (保持不變)
     addTextBtn.addEventListener('click', addNewTextObject);
     
     bringToFrontBtn.addEventListener('click', () => {
@@ -317,12 +328,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (activeObject) {
             const backgroundObject = canvas.getObjects()[0];
             if (activeObject !== backgroundObject) {
+                 // 確保物件在背景圖的上方 (index 1)
                  canvas.sendBackwards(activeObject, true);
                  canvas.renderAll();
             }
         }
     });
 
+    // 5. 刪除按鈕事件處理 (保持不變)
     deleteTextBtn.addEventListener('click', () => {
         const activeObject = canvas.getActiveObject();
         if (activeObject && confirm("確定要移除選中的物件嗎？")) {
@@ -333,6 +346,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // 6. 持久化與下載事件 (保持不變)
     saveStateBtn.addEventListener('click', saveCanvasState);
     loadStateBtn.addEventListener('click', loadCanvasState);
 
