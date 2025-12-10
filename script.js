@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // 獲取所有 DOM 元素
+    // 獲取所有 DOM 元素 (與之前一致)
     const imageLoader = document.getElementById('imageLoader');
     const textInput = document.getElementById('textInput');
     const fontFamilyControl = document.getElementById('fontFamily');
@@ -10,14 +10,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const downloadFormatControl = document.getElementById('downloadFormat');
     const downloadBtn = document.getElementById('downloadBtn');
     const placeholder = document.getElementById('canvasPlaceholder');
-    // const defaultImageElement = document.getElementById('defaultImage'); // <-- 移除此行
 
-    // 聲明為 let (保持不變)
     let canvas = null;
     let currentTextObject = null;
     let originalImage = null;
 
-    // --- 輔助函數 (保持不變) ---
+    // --- 輔助函數 ---
 
     function initializeCanvas() {
         const canvasElement = document.getElementById('imageCanvas');
@@ -32,7 +30,6 @@ document.addEventListener('DOMContentLoaded', () => {
             enablePointerEvents: true 
         });
         
-        // 由於沒有預載圖片，Canvas 初始尺寸為 0，佔位符應該顯示
         placeholder.style.display = 'block'; 
         currentTextObject = null;
         originalImage = null;
@@ -63,13 +60,15 @@ document.addEventListener('DOMContentLoaded', () => {
     function loadImageToCanvas(imgSource) {
         initializeCanvas(); 
 
-        placeholder.style.display = 'none';
+        placeholder.style.display = 'block'; // 載入開始時顯示載入中...
 
         // 使用 Fabric.Image.fromURL 載入 Base64 數據
         fabric.Image.fromURL(imgSource, function(img) {
+            // == 載入成功時執行 ==
+            console.log("Fabric.js 圖片載入成功！"); 
+            
             originalImage = img;
             
-            // 根據圖片尺寸設定 Canvas 尺寸
             canvas.setDimensions({ 
                 width: img.width, 
                 height: img.height 
@@ -98,7 +97,16 @@ document.addEventListener('DOMContentLoaded', () => {
             
             updateTextProperties(); 
             downloadBtn.disabled = false;
-        }, { crossOrigin: 'anonymous' }); 
+            placeholder.style.display = 'none'; // 載入成功後隱藏
+
+        }, { 
+            crossOrigin: 'anonymous', 
+            // [新增] 載入失敗的回調函數，用於明確診斷錯誤
+            onError: function(err) {
+                console.error("Fabric.js 載入 Base64 數據失敗！請檢查圖片檔案是否損壞或過大。", err);
+                placeholder.textContent = "👆 載入失敗！請確認圖片格式 (PNG/JPG) 及檔案大小 (建議小於 5MB)。";
+            }
+        }); 
     }
 
     // --- 事件監聽器與初始化 ---
@@ -108,9 +116,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const file = e.target.files[0];
         if (!file) return;
 
+        // 如果檔案超過 5MB，給予警告 (常見的手機限制)
+        if (file.size > 5 * 1024 * 1024) {
+            alert("警告：圖片檔案超過 5MB，手機上可能載入失敗。請嘗試較小的圖片。");
+        }
+
         const reader = new FileReader();
         reader.onload = (event) => {
-            // 將 Base64 數據傳遞給載入函數
+            // [關鍵] 將 Base64 數據傳遞給載入函數
             loadImageToCanvas(event.target.result); 
         };
         reader.onerror = () => {
@@ -122,13 +135,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. 網頁載入後立即執行初始化
     initializeCanvas(); 
     
-    // 3. 綁定控制項事件 (保持不變)
+    // 3. 綁定控制項事件
     [textInput, fontFamilyControl, fontSizeControl, fontWeightControl, fontColorControl, textOrientationControl].forEach(control => {
         control.addEventListener('input', updateTextProperties);
         control.addEventListener('change', updateTextProperties);
     });
 
-    // 4. 下載按鈕事件 (保持不變)
+    // 4. 下載按鈕事件
     downloadBtn.addEventListener('click', () => {
         if (!originalImage) {
             alert("請先上傳圖片！");
