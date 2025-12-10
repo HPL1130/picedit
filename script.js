@@ -10,21 +10,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const downloadFormatControl = document.getElementById('downloadFormat');
     const downloadBtn = document.getElementById('downloadBtn');
     const placeholder = document.getElementById('canvasPlaceholder');
-    const defaultImageElement = document.getElementById('defaultImage'); 
+    // const defaultImageElement = document.getElementById('defaultImage'); // <-- 移除此行
 
-    // 聲明為 let，用於在圖片載入時重新初始化
+    // 聲明為 let (保持不變)
     let canvas = null;
     let currentTextObject = null;
     let originalImage = null;
 
-    // --- 輔助函數 ---
+    // --- 輔助函數 (保持不變) ---
 
     function initializeCanvas() {
         const canvasElement = document.getElementById('imageCanvas');
         
         if (canvas) {
             canvas.clear();
-            // 關鍵：釋放記憶體，避免手機崩潰
             canvas.dispose(); 
         }
         
@@ -33,6 +32,8 @@ document.addEventListener('DOMContentLoaded', () => {
             enablePointerEvents: true 
         });
         
+        // 由於沒有預載圖片，Canvas 初始尺寸為 0，佔位符應該顯示
+        placeholder.style.display = 'block'; 
         currentTextObject = null;
         originalImage = null;
         downloadBtn.disabled = true;
@@ -64,10 +65,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         placeholder.style.display = 'none';
 
-        // 使用 Fabric.Image.fromURL 載入圖片 (imgSource 可以是 URL 或 Base64)
+        // 使用 Fabric.Image.fromURL 載入 Base64 數據
         fabric.Image.fromURL(imgSource, function(img) {
             originalImage = img;
             
+            // 根據圖片尺寸設定 Canvas 尺寸
             canvas.setDimensions({ 
                 width: img.width, 
                 height: img.height 
@@ -111,7 +113,6 @@ document.addEventListener('DOMContentLoaded', () => {
             // 將 Base64 數據傳遞給載入函數
             loadImageToCanvas(event.target.result); 
         };
-        // 處理讀取錯誤
         reader.onerror = () => {
             alert("檔案讀取失敗，請確認檔案類型或大小。");
         };
@@ -121,32 +122,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. 網頁載入後立即執行初始化
     initializeCanvas(); 
     
-    // 3. 載入預設圖片 (確保在初始化後執行)
-    if (defaultImageElement && defaultImageElement.src) {
-        if (defaultImageElement.complete) {
-            // 圖片已載入，立即使用
-            loadImageToCanvas(defaultImageElement.src);
-        } else {
-            // 圖片仍在載入，等待 onload 事件
-            defaultImageElement.onload = function() {
-                loadImageToCanvas(defaultImageElement.src);
-            };
-            // 處理載入錯誤
-            defaultImageElement.onerror = function() {
-                console.error("預設圖片載入失敗，請檢查 default_bg.jpg 檔案路徑。");
-                placeholder.textContent = "👆 請選擇圖片，預設背景載入失敗。";
-            };
-        }
-    }
-
-
-    // 4. 綁定控制項事件 (確保在 Canvas 創建後綁定)
+    // 3. 綁定控制項事件 (保持不變)
     [textInput, fontFamilyControl, fontSizeControl, fontWeightControl, fontColorControl, textOrientationControl].forEach(control => {
         control.addEventListener('input', updateTextProperties);
         control.addEventListener('change', updateTextProperties);
     });
 
-    // 5. 下載按鈕事件
+    // 4. 下載按鈕事件 (保持不變)
     downloadBtn.addEventListener('click', () => {
         if (!originalImage) {
             alert("請先上傳圖片！");
