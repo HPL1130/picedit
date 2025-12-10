@@ -12,11 +12,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const deleteTextBtn = document.getElementById('deleteTextBtn'); 
     const placeholder = document.getElementById('canvasPlaceholder');
     const loadingIndicator = document.getElementById('loadingIndicator'); 
-    // [新增] 儲存/載入按鈕
     const saveStateBtn = document.getElementById('saveStateBtn');
     const loadStateBtn = document.getElementById('loadStateBtn');
+    
+    // [新增] 獲取間距和透明度控制項
+    const charSpacingControl = document.getElementById('charSpacing');
+    const opacityControl = document.getElementById('opacity');
 
-    const STORAGE_KEY = 'image_editor_state'; // Local Storage Key
+    const STORAGE_KEY = 'image_editor_state';
 
     let canvas = null;
     let currentTextObject = null;
@@ -28,7 +31,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function saveCanvasState() {
         if (!canvas) return;
         
-        // 確保沒有選中控制框被儲存
         canvas.discardActiveObject();
         canvas.renderAll();
         
@@ -37,7 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const json = canvas.toJSON(['backgroundImage', 'objects']);
             localStorage.setItem(STORAGE_KEY, JSON.stringify(json));
             alert('編輯狀態已成功暫存於瀏覽器！');
-            checkLocalStorage(); // 更新載入按鈕狀態
+            checkLocalStorage();
         } catch (error) {
             console.error('儲存狀態失敗:', error);
             alert('儲存編輯狀態失敗，可能檔案太大。');
@@ -53,46 +55,48 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const json = JSON.parse(jsonString);
         
-        // 1. 清理現有 Canvas
         initializeCanvas(); 
 
         placeholder.style.display = 'block'; 
         loadingIndicator.style.display = 'block'; 
         placeholder.textContent = '正在載入暫存狀態...';
 
-        // 2. 從 JSON 載入狀態
         canvas.loadFromJSON(json, function() {
             canvas.renderAll();
             loadingIndicator.style.display = 'none'; 
             placeholder.style.display = 'none';
             downloadBtn.disabled = false;
             
-            // 3. 重新建立 currentTextObject 引用 (如果存在文字物件)
+            // 重新建立 currentTextObject 引用 (只找第一個文字物件)
             const textObj = canvas.getObjects().find(obj => obj.type === 'text');
             if (textObj) {
                 currentTextObject = textObj;
                 canvas.setActiveObject(currentTextObject);
                 deleteTextBtn.disabled = false;
-                // 4. 更新控制項狀態以匹配載入的物件 (可選，但推薦)
+                
+                // 更新控制項狀態以匹配載入的物件
                 textInput.value = currentTextObject.text;
                 fontFamilyControl.value = currentTextObject.fontFamily;
                 fontSizeControl.value = currentTextObject.fontSize;
                 fontColorControl.value = currentTextObject.fill;
                 fontWeightControl.value = currentTextObject.fontWeight;
                 textOrientationControl.value = currentTextObject.angle === 90 ? 'vertical' : 'horizontal';
+                
+                // [新增] 載入間距和透明度值
+                charSpacingControl.value = currentTextObject.charSpacing || 0;
+                opacityControl.value = currentTextObject.opacity * 100 || 100;
+
             } else {
                 deleteTextBtn.disabled = true;
             }
             alert('暫存狀態已成功載入！');
         }, function(o, object) {
-            // 載入進度或錯誤處理
             if (object && object.type === 'image') {
-                originalImage = object; // 假設背景圖是我們的主要圖片
+                originalImage = object; 
             }
         });
     }
 
-    // [新增] 檢查 Local Storage 並更新載入按鈕狀態
     function checkLocalStorage() {
         if (localStorage.getItem(STORAGE_KEY)) {
             loadStateBtn.disabled = false;
@@ -127,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
         deleteTextBtn.disabled = true; 
     }
 
-    // [效能優化版] updateTextProperties 函數 (與上一步一致)
+    // [核心修改] updateTextProperties 函數 - 加入間距和透明度屬性
     function updateTextProperties() {
         if (!canvas) return;
         
@@ -141,6 +145,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const strokeColor = '#000000';
         const strokeWidth = 2;
         
+        // [關鍵] 獲取新的屬性值
+        const newCharSpacing = parseInt(charSpacingControl.value, 10);
+        const newOpacity = parseFloat(opacityControl.value / 100);
+
         const textAngle = orientation === 'vertical' ? 90 : 0; 
 
         if (currentTextObject) {
@@ -148,6 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
             currentTextObject = null;
         }
 
+        // 創建單個高性能的 fabric.Text 物件
         currentTextObject = new fabric.Text(textValue, {
             fontSize: newFontSize,
             fontFamily: newFontFamily,
@@ -156,6 +165,10 @@ document.addEventListener('DOMContentLoaded', () => {
             shadow: shadowStyle,
             stroke: strokeColor,
             strokeWidth: strokeWidth,
+            
+            // [關鍵] 應用新的屬性
+            charSpacing: newCharSpacing, 
+            opacity: newOpacity,
             
             left: canvas.width / 2,
             top: canvas.height / 2,
@@ -179,7 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
         canvas.requestRenderAll();
     }
     
-    // 核心函數：載入圖片到 Canvas
+    // 核心函數：載入圖片到 Canvas (保持不變)
     function loadImageToCanvas(imgSource) {
         initializeCanvas(); 
 
@@ -225,7 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fontsLoaded = true;
         console.log("Web Fonts 載入完成！");
         initializeCanvas(); 
-        checkLocalStorage(); // 字體載入完畢後，檢查是否有存檔
+        checkLocalStorage();
     }).catch(err => {
         console.error("Web Fonts 載入失敗，使用系統字體。", err);
         initializeCanvas();
@@ -255,8 +268,11 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.readAsDataURL(file);
     });
 
-    // 3. 綁定控制項事件
-    [textInput, fontFamilyControl, fontSizeControl, fontWeightControl, fontColorControl, textOrientationControl].forEach(control => {
+    // 3. 綁定控制項事件 (新增間距和透明度控制項)
+    [
+        textInput, fontFamilyControl, fontSizeControl, fontWeightControl, fontColorControl, 
+        textOrientationControl, charSpacingControl, opacityControl 
+    ].forEach(control => {
         control.addEventListener('input', updateTextProperties);
         control.addEventListener('change', updateTextProperties);
     });
