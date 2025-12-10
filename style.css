@@ -64,12 +64,17 @@ input[type="file"], textarea, input[type="range"], input[type="color"] {
     display: flex;
     justify-content: center;
     align-items: center;
+    
+    /* [新增] 限制容器最大寬度，確保不會超出螢幕 */
+    width: 100%; 
+    overflow: hidden; /* 防止子元素溢出 */
 }
 
 #imageCanvas {
     display: block;
-    /* Canvas 預設隱藏，直到圖片載入 */
-    display: none; 
+    /* [重要新增] 讓 Canvas 的顯示寬度始終填滿父容器 */
+    max-width: 100%; 
+    height: auto; /* 保持圖片比例 */
 }
 
 #canvasPlaceholder {
@@ -125,3 +130,4 @@ input[type="file"], textarea, input[type="range"], input[type="color"] {
     flex-direction: column;
     gap: 10px;
 }
+
