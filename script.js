@@ -1,15 +1,19 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // DOM 元素獲取
     const imageLoader = document.getElementById('imageLoader');
     const textInput = document.getElementById('textInput');
+    const fontFamilyControl = document.getElementById('fontFamily'); // 新增
     const fontSizeControl = document.getElementById('fontSize');
     const fontColorControl = document.getElementById('fontColor');
+    const textXControl = document.getElementById('textX'); // 新增
+    const textYControl = document.getElementById('textY'); // 新增
+    const downloadFormatControl = document.getElementById('downloadFormat'); // 新增
     const downloadBtn = document.getElementById('downloadBtn');
     const canvas = document.getElementById('imageCanvas');
     const placeholder = document.getElementById('canvasPlaceholder');
     const ctx = canvas.getContext('2d');
 
     let uploadedImage = new Image();
-    let originalText = ""; // 儲存輸入的文字
 
     // 繪製所有的元素到 Canvas 上
     function drawCanvas() {
@@ -20,30 +24,37 @@ document.addEventListener('DOMContentLoaded', () => {
         canvas.height = uploadedImage.height;
         
         // 2. 繪製圖片
-        ctx.clearRect(0, 0, canvas.width, canvas.height); // 清空 Canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(uploadedImage, 0, 0, canvas.width, canvas.height);
 
         // 3. 繪製文字
         const text = textInput.value || "在此輸入文字";
+        
+        // 獲取所有控制項的值
+        const fontFamily = fontFamilyControl.value; // 字型
         const fontSize = parseInt(fontSizeControl.value, 10);
         const fontColor = fontColorControl.value;
+        const textXPercent = parseFloat(textXControl.value) / 100; // X 座標 (百分比轉小數)
+        const textYPercent = parseFloat(textYControl.value) / 100; // Y 座標 (百分比轉小數)
         
-        ctx.fillStyle = fontColor;
-        ctx.font = `${fontSize}px Arial, sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
+        // 計算實際像素座標
+        const x = canvas.width * textXPercent;
+        const y = canvas.height * textYPercent;
 
-        // 設置文字位置 (預設置中)
-        const x = canvas.width / 2;
-        const y = canvas.height * 0.8; // 放在圖片下方的 80% 高度處
+        ctx.fillStyle = fontColor;
+        ctx.font = `${fontSize}px ${fontFamily}`; // 套用字型
+        ctx.textAlign = 'center'; // 文字對齊方式
+        ctx.textBaseline = 'middle';
 
         // 處理多行文字
         const lines = text.split('\n');
         const lineHeight = fontSize * 1.2; // 行高
-        let currentY = y - (lines.length - 1) * lineHeight / 2; // 計算起始 Y 座標，使其整體居中
+        
+        // 計算起始 Y 座標，使其整體居中於 Y 座標點
+        let currentY = y - (lines.length - 1) * lineHeight / 2; 
 
         lines.forEach(line => {
-            // 繪製帶有黑色陰影的文字，使其在各種背景上都清晰
+            // 繪製文字描邊/陰影，使其更清晰
             ctx.shadowColor = 'black';
             ctx.shadowBlur = 4;
             ctx.shadowOffsetX = 2;
@@ -51,7 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             ctx.fillText(line, x, currentY);
             
-            // 清除陰影，確保後續繪圖不受影響 (雖然這裡沒有後續繪圖)
+            // 清除陰影
             ctx.shadowColor = 'transparent';
             ctx.shadowBlur = 0;
             ctx.shadowOffsetX = 0;
@@ -60,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
             currentY += lineHeight;
         });
 
-        downloadBtn.disabled = false; // 允許下載
+        downloadBtn.disabled = false;
     }
 
     // --- 事件監聽器 ---
@@ -73,8 +84,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const reader = new FileReader();
         reader.onload = (event) => {
             uploadedImage.onload = () => {
-                placeholder.style.display = 'none'; // 隱藏佔位符
-                canvas.style.display = 'block';    // 顯示 Canvas
+                placeholder.style.display = 'none';
+                canvas.style.display = 'block';
                 drawCanvas();
             };
             uploadedImage.src = event.target.result;
@@ -82,8 +93,8 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.readAsDataURL(file);
     });
 
-    // 編輯器設定變更事件 (文字輸入、大小、顏色)
-    [textInput, fontSizeControl, fontColorControl].forEach(control => {
+    // 編輯器設定變更事件 (監聽所有控制項)
+    [textInput, fontFamilyControl, fontSizeControl, fontColorControl, textXControl, textYControl].forEach(control => {
         control.addEventListener('input', drawCanvas);
     });
 
@@ -93,11 +104,24 @@ document.addEventListener('DOMContentLoaded', () => {
             alert("請先上傳圖片！");
             return;
         }
+        
+        // 獲取選擇的格式
+        const format = downloadFormatControl.value; 
+        let dataURL;
 
-        // 獲取 Canvas 數據並建立下載連結
-        const dataURL = canvas.toDataURL('image/png'); 
+        if (format === 'image/jpeg') {
+            // JPEG 格式通常需要指定品質 (0.0 - 1.0)
+            dataURL = canvas.toDataURL('image/jpeg', 0.9); 
+        } else {
+            // 預設為 PNG
+            dataURL = canvas.toDataURL('image/png'); 
+        }
+
         const link = document.createElement('a');
-        link.download = `早安圖-${Date.now()}.png`; // 設置下載檔案名稱
+        const fileExtension = format.split('/')[1]; // 取得 png 或 jpeg
+        
+        // 設置下載檔案名稱
+        link.download = `圖像創意文字-${Date.now()}.${fileExtension}`; 
         link.href = dataURL;
         document.body.appendChild(link);
         link.click();
