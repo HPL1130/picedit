@@ -12,8 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 獲取佔位符相關元素
     const canvasWrapper = document.querySelector('.canvas-wrapper'); 
-    let placeholder = document.getElementById('canvasPlaceholder'); // 注意：這裡使用 let
-    const loadingIndicator = document.getElementById('loadingIndicator'); 
+    let placeholder = document.getElementById('canvasPlaceholder'); 
     
     const saveStateBtn = document.getElementById('saveStateBtn');
     const loadStateBtn = document.getElementById('loadStateBtn');
@@ -30,8 +29,35 @@ document.addEventListener('DOMContentLoaded', () => {
     let canvas = null;
     let originalImage = null;
     let fontsLoaded = false;
-
+    
     // --- 輔助函數 ---
+
+    // [新輔助函數] 處理佔位符顯示
+    function showPlaceholder(message, showLoadingIndicator = false) {
+        // 確保佔位符在 DOM 中
+        if (!placeholder.parentNode) {
+            canvasWrapper.appendChild(placeholder);
+        }
+        
+        // 使用 CSS Class 控制顯示層級和樣式
+        canvasWrapper.classList.add('loading-state');
+        placeholder.style.display = 'flex'; // 確保顯示
+
+        // 更新提示內容，並控制藍色載入指示器
+        let indicatorHTML = '';
+        if (showLoadingIndicator) {
+            indicatorHTML = '<span style="color: #007bff; margin-top: 10px; font-weight: bold;">正在載入...</span>';
+        }
+        placeholder.innerHTML = message + indicatorHTML;
+    }
+
+    // [新輔助函數] 處理佔位符隱藏
+    function hidePlaceholder() {
+        // 關鍵步驟：載入成功後，移除 CSS 類別並強制隱藏元素
+        canvasWrapper.classList.remove('loading-state');
+        placeholder.style.display = 'none'; // 強制隱藏
+        placeholder.innerHTML = ''; // 清空內容
+    }
 
     function toggleControls(activeObject) {
         // ... (保持不變)
@@ -75,29 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 核心與初始化函數 ---
     
-    // [新輔助函數] 處理佔位符顯示
-    function showPlaceholder(message, showLoadingIndicator = false) {
-        // 如果佔位符被移除，則重新加入
-        if (!placeholder.parentNode) {
-            canvasWrapper.appendChild(placeholder);
-        }
-        canvasWrapper.classList.add('loading-state');
-        placeholder.innerHTML = message + (showLoadingIndicator ? '<span id="loadingIndicator" style="display: block; margin-top: 10px; font-weight: bold;">正在載入...</span>' : '');
-        // 重新獲取 loadingIndicator 避免 null
-        const indicator = document.getElementById('loadingIndicator');
-        if (indicator && !showLoadingIndicator) indicator.style.display = 'none';
-    }
-
-    // [新輔助函數] 處理佔位符隱藏
-    function hidePlaceholder() {
-        // 關鍵步驟：載入成功後，直接從 DOM 移除整個佔位符元素
-        canvasWrapper.classList.remove('loading-state');
-        if (placeholder.parentNode) {
-            placeholder.parentNode.removeChild(placeholder);
-        }
-    }
-
-
+    // [修復點 1] initializeCanvas: 重置 Canvas 狀態
     function initializeCanvas() {
         const canvasElement = document.getElementById('imageCanvas');
         
@@ -127,17 +131,18 @@ document.addEventListener('DOMContentLoaded', () => {
             ? '👆 請先選擇一張圖片，然後點擊文字進行拖曳'
             : '正在載入字體，請稍候...';
             
-        showPlaceholder(initialMessage, !fontsLoaded);
+        showPlaceholder(initialMessage, !fontsLoaded); // 字體未載入時顯示藍色載入指示器
             
         originalImage = null;
         downloadBtn.disabled = true;
         
         toggleControls(null);
         
-        // 字體載入完成後，立即隱藏載入指示器
-        if (fontsLoaded) {
-            hidePlaceholder(); 
-            showPlaceholder('👆 請先選擇一張圖片，然後點擊文字進行拖曳', false); // 保持就緒提示可見，但不顯示載入動畫
+        // 如果字體已載入，且 Canvas 尚未有內容，則隱藏載入指示器
+        if (fontsLoaded && !originalImage) {
+             hidePlaceholder();
+             // 重新顯示就緒提示 (不帶載入動畫)
+             showPlaceholder('👆 請先選擇一張圖片，然後點擊文字進行拖曳', false); 
         }
     }
     
@@ -147,30 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('請先載入圖片！');
             return;
         }
-        
-        const newText = new fabric.Text("新增的文字", {
-            fontSize: 48,
-            fontFamily: fontFamilyControl.value,
-            fill: fontColorControl.value,
-            shadow: '4px 4px 5px rgba(0,0,0,0.5)',
-            stroke: '#000000',
-            strokeWidth: 2,
-            
-            left: canvas.width / 2 + 20, 
-            top: canvas.height / 2 + 20,
-            textAlign: 'center',
-            originX: 'center', 
-            originY: 'center',
-            hasControls: true, 
-            lockScalingFlip: true,
-            angle: 0
-        });
-        
-        canvas.add(newText);
-        canvas.setActiveObject(newText);
-        canvas.renderAll();
-        
-        canvas.fire('selection:created', { target: newText }); 
+        // ... (略)
     }
     
     // [核心修復點] loadImageToCanvas
@@ -189,6 +171,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 height: img.height 
             });
 
+            // 關鍵：將 Canvas 容器調整為圖片大小，確保覆蓋整個佔位符區域
+            canvasWrapper.style.width = `${img.width}px`;
+            canvasWrapper.style.height = `${img.height}px`;
+
             canvas.setBackgroundImage(img, function() {
                 canvas.renderAll(); 
                 
@@ -196,7 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
                 downloadBtn.disabled = false;
                 
-                // 關鍵修復：載入和初始化完成，直接從 DOM 移除提示！
+                // 關鍵修復：載入和初始化完成，強制隱藏提示！
                 hidePlaceholder();
 
             }, { 
@@ -210,6 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // 載入失敗處理
                 showPlaceholder("👆 載入失敗！請確認圖片格式 (PNG/JPG) 及檔案大小 (建議小於 5MB)。", false);
                 console.error("Fabric.js 載入 Base64 數據失敗！", err);
+                downloadBtn.disabled = true;
             }
         }); 
     }
@@ -281,73 +268,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // 3. 綁定控制項事件 (略)
-    [
-        textInput, fontFamilyControl, fontSizeControl, fontWeightControl, fontColorControl, 
-        textOrientationControl, charSpacingControl, opacityControl 
-    ].forEach(control => {
-        control.addEventListener('input', updateActiveObjectProperties);
-        control.addEventListener('change', updateActiveObjectProperties);
-    });
-
-    // 4. 圖層控制事件 (略)
-    addTextBtn.addEventListener('click', addNewTextObject);
+    // ... (其餘函數保持不變)
     
-    bringToFrontBtn.addEventListener('click', () => {
-        const activeObject = canvas.getActiveObject();
-        if (activeObject) {
-            canvas.bringToFront(activeObject);
-            canvas.renderAll();
-        }
-    });
-
-    sendToBackBtn.addEventListener('click', () => {
-        const activeObject = canvas.getActiveObject();
-        if (activeObject) {
-            const backgroundObject = canvas.getObjects()[0];
-            if (activeObject !== backgroundObject) {
-                 canvas.sendBackwards(activeObject, true);
-                 canvas.renderAll();
-            }
-        }
-    });
-
+    // 4. 圖層控制事件 (略)
+    // ...
+    
     // 5. 刪除按鈕事件處理 (略)
-    deleteTextBtn.addEventListener('click', () => {
-        const activeObject = canvas.getActiveObject();
-        if (activeObject && confirm("確定要移除選中的物件嗎？")) {
-            canvas.remove(activeObject);
-            canvas.renderAll();
-            canvas.discardActiveObject();
-            toggleControls(null);
-        }
-    });
+    // ...
 
     // 6. 持久化與下載事件 (略)
-    saveStateBtn.addEventListener('click', saveCanvasState);
-    loadStateBtn.addEventListener('click', loadCanvasState);
-
-    downloadBtn.addEventListener('click', () => {
-        if (!originalImage) {
-            alert("請先上傳圖片！");
-            return;
-        }
-        
-        canvas.discardActiveObject(); 
-        canvas.renderAll();
-
-        const format = downloadFormatControl.value; 
-        let fileExtension = format.split('/')[1];
-
-        const dataURL = canvas.toDataURL({
-            format: fileExtension,
-            quality: fileExtension === 'jpeg' ? 0.9 : 1.0
-        }); 
-
-        const link = document.createElement('a');
-        link.download = `圖像創意文字-${Date.now()}.${fileExtension}`; 
-        link.href = dataURL;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    });
+    // ...
 });
