@@ -1,25 +1,28 @@
+/* style.css */
+
 body {
-    font-family: Arial, sans-serif;
-    background-color: #f4f4f9;
-    color: #333;
-    line-height: 1.6;
+    font-family: 'Noto Sans TC', 'Microsoft JhengHei', Arial, sans-serif;
+    background-color: #f4f7f6;
+    margin: 0;
     padding: 20px;
+    display: flex;
+    justify-content: center;
+    color: #333;
 }
 
 .container {
-    max-width: 800px;
-    margin: 0 auto;
-    background: #fff;
+    background: #ffffff;
     padding: 30px;
     border-radius: 8px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    max-width: 900px;
+    width: 100%;
 }
 
 h1 {
-    color: #007bff;
     text-align: center;
-    border-bottom: 2px solid #eee;
-    padding-bottom: 10px;
+    color: #007bff;
+    margin-bottom: 20px;
 }
 
 .privacy-note {
@@ -28,101 +31,156 @@ h1 {
     padding: 10px;
     border: 1px solid #ffeeba;
     border-radius: 4px;
-    text-align: center;
     margin-bottom: 20px;
+    font-size: 0.9em;
 }
 
 .control-group {
-    margin-bottom: 20px;
-    padding: 15px;
-    border: 1px solid #ddd;
-    border-radius: 5px;
+    margin-bottom: 15px;
+    padding: 10px;
+    border: 1px solid #eee;
+    border-radius: 4px;
 }
 
 label {
     display: block;
-    font-weight: bold;
     margin-bottom: 5px;
-    margin-top: 10px;
+    font-weight: bold;
 }
 
-textarea, input[type="file"], input[type="number"], select, input[type="color"] {
+input[type="file"],
+input[type="number"],
+input[type="color"],
+textarea,
+select {
     width: 100%;
     padding: 8px;
-    box-sizing: border-box;
+    margin-bottom: 10px;
     border: 1px solid #ccc;
     border-radius: 4px;
-    margin-bottom: 10px;
+    box-sizing: border-box;
 }
 
-/* 多個控制項排版 */
+textarea {
+    resize: vertical;
+}
+
 .controls-row {
     display: flex;
-    gap: 15px;
+    gap: 10px;
     margin-bottom: 10px;
-    flex-wrap: wrap; 
 }
 
 .control-item {
     flex: 1;
-    min-width: 150px;
 }
 
-/* 編輯區自適應設置 */
-.canvas-wrapper {
-    position: relative;
-    border: 2px dashed #ccc;
-    background-color: #eee;
-    /* [關鍵] 確保在沒有圖片時也有空間，解決編輯區消失的問題 */
-    min-height: 300px; 
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 100%; 
-    overflow: hidden; 
-    margin-bottom: 20px;
-}
-
-/* 確保 Fabric.js 創建的 Canvas 不會超出容器 */
-#imageCanvas {
-    display: block;
-    max-width: 100%; 
-    height: auto; 
-}
-
-#canvasPlaceholder {
-    color: #666;
-    font-size: 1.2em;
-    position: absolute;
-    /* 讓佔位符內容居中 */
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-}
-
-#downloadBtn {
-    width: 100%;
-    padding: 15px;
+/* 按鈕樣式 */
+button {
+    padding: 10px 15px;
     background-color: #28a745;
     color: white;
     border: none;
-    border-radius: 5px;
-    font-size: 1.1em;
+    border-radius: 4px;
     cursor: pointer;
-    transition: background-color 0.3s;
-    margin-top: 10px;
+    font-size: 1em;
+    transition: background-color 0.2s;
+    width: 100%;
 }
 
-#downloadBtn:hover:not([disabled]) {
-    background-color: #1e7e34;
+button:hover:not([disabled]) {
+    background-color: #218838;
 }
 
-#downloadBtn[disabled] {
-    background-color: #90ee90;
+button[disabled] {
+    background-color: #ccc;
     cursor: not-allowed;
 }
 
 .download-area {
     display: flex;
     flex-direction: column;
+    gap: 10px;
+}
+
+.download-area select {
+    width: auto;
+    flex-grow: 0;
+}
+
+
+/* --- Canvas 編輯區樣式 --- */
+
+.canvas-wrapper {
+    position: relative;
+    width: 100%;
+    /* 確保容器有最小高度，即使 Canvas 尚未初始化 */
+    min-height: 250px; 
+    background-color: #e0e0e0;
+    border: 2px dashed #999;
+    margin-bottom: 20px;
+}
+
+#imageCanvas {
+    /* 預設隱藏 Canvas，直到圖片載入 */
+    display: block; 
+}
+
+/* 佔位符樣式 (Canvas 尚未初始化或載入圖片時) */
+#canvasPlaceholder {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.9);
+    display: flex; 
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+    font-size: 1.2em;
+    color: #666;
+    padding: 20px;
+    box-sizing: border-box;
+    /* 預設是顯示的，由 JS 判斷隱藏時機 */
+    z-index: 5;
+}
+
+#loadingIndicator {
+    color: #007bff;
+    font-size: 1.1em;
+    margin-top: 10px;
+}
+
+/* --- 關鍵修復：載入狀態控制 CSS --- */
+
+/* 確保佔位符在載入狀態時顯示在最上層 */
+.canvas-wrapper.loading-state #canvasPlaceholder {
+    display: flex !important; 
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    z-index: 10; 
+}
+
+/* 非載入狀態下，強制隱藏佔位符 (圖片載入完成後，JS 會移除 loading-state) */
+.canvas-wrapper:not(.loading-state) #canvasPlaceholder {
+    display: none !important;
+}
+
+/* 確保載入指示器在載入狀態時顯示 */
+.canvas-wrapper.loading-state #loadingIndicator {
+    display: block !important;
+}
+
+/* 響應式設計 */
+@media (max-width: 768px) {
+    .controls-row {
+        flex-direction: column;
+        gap: 0;
+    }
+    .control-item {
+        margin-bottom: 10px;
+    }
 }
