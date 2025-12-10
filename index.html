@@ -16,7 +16,7 @@
 <body>
     <div class="container">
         <h1>🎨 圖像創意文字產生器</h1>
-        <p class="privacy-note">⚠️ **隱私聲明：** 您的圖片和編輯過程完全在您的瀏覽器中處理，不會上傳到任何伺服器。請用**單指點擊**文字物件即可拖曳、縮放、旋轉。</p>
+        <p class="privacy-note">⚠️ **隱私聲明：** 您的圖片和編輯過程完全在您的瀏覽器中處理，不會上傳到任何伺服器。</p>
 
         <div class="control-group">
             <label for="imageLoader">選擇底圖：</label>
@@ -88,7 +88,16 @@
                 <option value="image/png">PNG (推薦，無失真)</option>
                 <option value="image/jpeg">JPEG (檔案小)</option>
             </select>
-            <button id="downloadBtn" disabled>下載製作好的圖片</button>
+            
+            <div class="controls-row" style="margin-top: 10px;">
+                <button id="saveStateBtn" style="flex: 1; padding: 10px; background-color: #ffc107; color: #333; border: none; border-radius: 4px; cursor: pointer;">
+                    💾 暫存編輯狀態
+                </button>
+                <button id="loadStateBtn" disabled style="flex: 1; padding: 10px; background-color: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                    📂 載入暫存狀態
+                </button>
+            </div>
+            <button id="downloadBtn" disabled style="margin-top: 10px;">下載製作好的圖片</button>
         </div>
     </div>
     
