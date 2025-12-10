@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>純前端圖片文字編輯器</title>
+    <title>圖像創意文字產生器</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
-        <h1>🌞 免伺服器早安圖製作機</h1>
+        <h1>🎨 圖像創意文字產生器</h1>
         <p class="privacy-note">⚠️ **隱私聲明：** 您的圖片和編輯過程完全在您的瀏覽器中處理，不會上傳到任何伺服器。</p>
 
         <div class="control-group">
@@ -18,13 +18,39 @@
 
         <div class="control-group">
             <label for="textInput">輸入文字：</label>
-            <textarea id="textInput" placeholder="在此輸入您想新增的早安問候語..." rows="3"></textarea>
+            <textarea id="textInput" placeholder="在此輸入您想新增的創意文字..." rows="3"></textarea>
             
-            <label for="fontSize">文字大小：</label>
-            <input type="range" id="fontSize" min="20" max="100" value="48">
-            
-            <label for="fontColor">文字顏色：</label>
-            <input type="color" id="fontColor" value="#ffffff">
+            <div class="controls-row">
+                <div class="control-item">
+                    <label for="fontFamily">字型：</label>
+                    <select id="fontFamily">
+                        <option value="Arial, sans-serif">Arial (預設)</option>
+                        <option value="Georgia, serif">Georgia</option>
+                        <option value="'Courier New', monospace">Courier New</option>
+                        <option value="'Times New Roman', serif">Times New Roman</option>
+                        <option value="'Comic Sans MS', cursive">Comic Sans MS</option>
+                    </select>
+                </div>
+                <div class="control-item">
+                    <label for="fontSize">文字大小：</label>
+                    <input type="number" id="fontSize" min="10" max="150" value="48">
+                </div>
+            </div>
+
+            <div class="controls-row">
+                <div class="control-item">
+                    <label for="fontColor">文字顏色：</label>
+                    <input type="color" id="fontColor" value="#ffffff">
+                </div>
+                <div class="control-item">
+                    <label for="textX">X 座標 (左/右)：</label>
+                    <input type="number" id="textX" value="50" min="0" max="100">
+                </div>
+                <div class="control-item">
+                    <label for="textY">Y 座標 (上/下)：</label>
+                    <input type="number" id="textY" value="80" min="0" max="100">
+                </div>
+            </div>
         </div>
 
         <div class="canvas-wrapper">
@@ -33,7 +59,12 @@
         </div>
 
         <div class="control-group download-area">
-            <button id="downloadBtn" disabled>下載製作好的圖片 (PNG)</button>
+             <label for="downloadFormat">存檔格式：</label>
+            <select id="downloadFormat">
+                <option value="image/png">PNG (推薦)</option>
+                <option value="image/jpeg">JPEG</option>
+            </select>
+            <button id="downloadBtn" disabled>下載製作好的圖片</button>
         </div>
     </div>
     
