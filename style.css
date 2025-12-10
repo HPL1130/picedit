@@ -1,3 +1,4 @@
+
 body {
     font-family: Arial, sans-serif;
     background-color: #f4f4f9;
@@ -95,4 +96,32 @@ input[type="file"], textarea, input[type="range"], input[type="color"] {
 #downloadBtn[disabled] {
     background-color: #90ee90;
     cursor: not-allowed;
+}/* 新增的控制項排版 */
+.controls-row {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 10px;
+    flex-wrap: wrap; /* 確保小螢幕上可以換行 */
+}
+
+.control-item {
+    flex: 1;
+    min-width: 150px; /* 確保每個控制項不會太窄 */
+}
+
+.control-item input[type="number"], 
+.control-item select {
+    width: 100%;
+    padding: 8px;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+/* 讓下載按鈕和格式選擇器分開 */
+.download-area {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
