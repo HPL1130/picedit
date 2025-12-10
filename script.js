@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // 獲取所有 DOM 元素 (保持不變)
+    // 獲取所有 DOM 元素
     const imageLoader = document.getElementById('imageLoader');
     const textInput = document.getElementById('textInput');
     const fontFamilyControl = document.getElementById('fontFamily');
@@ -12,16 +12,97 @@ document.addEventListener('DOMContentLoaded', () => {
     const deleteTextBtn = document.getElementById('deleteTextBtn'); 
     const placeholder = document.getElementById('canvasPlaceholder');
     const loadingIndicator = document.getElementById('loadingIndicator'); 
+    // [新增] 儲存/載入按鈕
+    const saveStateBtn = document.getElementById('saveStateBtn');
+    const loadStateBtn = document.getElementById('loadStateBtn');
+
+    const STORAGE_KEY = 'image_editor_state'; // Local Storage Key
 
     let canvas = null;
     let currentTextObject = null;
     let originalImage = null;
-
-    // [新增] 檢查字體載入狀態的旗標
     let fontsLoaded = false;
     
-    // --- 輔助函數 ---
+    // --- 資料持久化函數 ---
 
+    function saveCanvasState() {
+        if (!canvas) return;
+        
+        // 確保沒有選中控制框被儲存
+        canvas.discardActiveObject();
+        canvas.renderAll();
+        
+        try {
+            // 將整個 Canvas 狀態轉換為 JSON 字串並儲存
+            const json = canvas.toJSON(['backgroundImage', 'objects']);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(json));
+            alert('編輯狀態已成功暫存於瀏覽器！');
+            checkLocalStorage(); // 更新載入按鈕狀態
+        } catch (error) {
+            console.error('儲存狀態失敗:', error);
+            alert('儲存編輯狀態失敗，可能檔案太大。');
+        }
+    }
+
+    function loadCanvasState() {
+        const jsonString = localStorage.getItem(STORAGE_KEY);
+        if (!jsonString) {
+            alert('找不到任何暫存的編輯狀態。');
+            return;
+        }
+
+        const json = JSON.parse(jsonString);
+        
+        // 1. 清理現有 Canvas
+        initializeCanvas(); 
+
+        placeholder.style.display = 'block'; 
+        loadingIndicator.style.display = 'block'; 
+        placeholder.textContent = '正在載入暫存狀態...';
+
+        // 2. 從 JSON 載入狀態
+        canvas.loadFromJSON(json, function() {
+            canvas.renderAll();
+            loadingIndicator.style.display = 'none'; 
+            placeholder.style.display = 'none';
+            downloadBtn.disabled = false;
+            
+            // 3. 重新建立 currentTextObject 引用 (如果存在文字物件)
+            const textObj = canvas.getObjects().find(obj => obj.type === 'text');
+            if (textObj) {
+                currentTextObject = textObj;
+                canvas.setActiveObject(currentTextObject);
+                deleteTextBtn.disabled = false;
+                // 4. 更新控制項狀態以匹配載入的物件 (可選，但推薦)
+                textInput.value = currentTextObject.text;
+                fontFamilyControl.value = currentTextObject.fontFamily;
+                fontSizeControl.value = currentTextObject.fontSize;
+                fontColorControl.value = currentTextObject.fill;
+                fontWeightControl.value = currentTextObject.fontWeight;
+                textOrientationControl.value = currentTextObject.angle === 90 ? 'vertical' : 'horizontal';
+            } else {
+                deleteTextBtn.disabled = true;
+            }
+            alert('暫存狀態已成功載入！');
+        }, function(o, object) {
+            // 載入進度或錯誤處理
+            if (object && object.type === 'image') {
+                originalImage = object; // 假設背景圖是我們的主要圖片
+            }
+        });
+    }
+
+    // [新增] 檢查 Local Storage 並更新載入按鈕狀態
+    function checkLocalStorage() {
+        if (localStorage.getItem(STORAGE_KEY)) {
+            loadStateBtn.disabled = false;
+        } else {
+            loadStateBtn.disabled = true;
+        }
+    }
+
+    // --- 核心與初始化函數 ---
+    
     function initializeCanvas() {
         const canvasElement = document.getElementById('imageCanvas');
         
@@ -35,7 +116,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         
         placeholder.style.display = 'block'; 
-        // 初始佔位符提示字體狀態
         placeholder.innerHTML = fontsLoaded 
             ? '👆 請先選擇一張圖片，然後點擊文字進行拖曳'
             : '正在載入字體，請稍候...';
@@ -47,10 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
         deleteTextBtn.disabled = true; 
     }
 
-    // ... updateTextProperties 函數 (保持不變) ...
-    // 由於此函數與效能優化版 script.js 內容一致，這裡省略以避免重複。
-    // 請確保使用上一個步驟中提供的效能優化版 script.js 中的 updateTextProperties 內容。
-    
+    // [效能優化版] updateTextProperties 函數 (與上一步一致)
     function updateTextProperties() {
         if (!canvas) return;
         
@@ -71,7 +148,6 @@ document.addEventListener('DOMContentLoaded', () => {
             currentTextObject = null;
         }
 
-        // 創建單個高性能的 fabric.Text 物件
         currentTextObject = new fabric.Text(textValue, {
             fontSize: newFontSize,
             fontFamily: newFontFamily,
@@ -105,16 +181,14 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 核心函數：載入圖片到 Canvas
     function loadImageToCanvas(imgSource) {
-        // ... (保持不變) ...
         initializeCanvas(); 
 
         placeholder.style.display = 'block'; 
         loadingIndicator.style.display = 'block'; 
-        placeholder.innerHTML = '<span id="loadingIndicator">正在載入圖片並初始化... (需數秒)</span>';
+        placeholder.textContent = '正在載入圖片並初始化...';
 
 
         fabric.Image.fromURL(imgSource, function(img) {
-            // == 載入成功時執行 ==
             loadingIndicator.style.display = 'none'; 
             
             originalImage = img;
@@ -146,16 +220,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 事件監聽器與初始化 ---
 
-    // 1. [關鍵] 等待字體載入完成，再進行初始化
+    // 1. [Web Font] 等待字體載入完成，再進行初始化
     document.fonts.ready.then(() => {
         fontsLoaded = true;
         console.log("Web Fonts 載入完成！");
-        // 初始化 Canvas
         initializeCanvas(); 
+        checkLocalStorage(); // 字體載入完畢後，檢查是否有存檔
     }).catch(err => {
-        // 如果字體載入失敗，仍然進行初始化
         console.error("Web Fonts 載入失敗，使用系統字體。", err);
         initializeCanvas();
+        checkLocalStorage(); 
     });
 
     // 2. 處理使用者上傳圖片
@@ -169,7 +243,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const reader = new FileReader();
         reader.onload = (event) => {
-            // 確保字體載入後才開始載入圖片
             if (fontsLoaded) {
                 loadImageToCanvas(event.target.result); 
             } else {
@@ -188,7 +261,11 @@ document.addEventListener('DOMContentLoaded', () => {
         control.addEventListener('change', updateTextProperties);
     });
 
-    // 4. 刪除按鈕事件處理
+    // 4. [持久化] 儲存與載入事件
+    saveStateBtn.addEventListener('click', saveCanvasState);
+    loadStateBtn.addEventListener('click', loadCanvasState);
+
+    // 5. 刪除按鈕事件處理
     deleteTextBtn.addEventListener('click', () => {
         if (currentTextObject && confirm("確定要移除目前的文字物件嗎？")) {
             canvas.remove(currentTextObject);
@@ -199,7 +276,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 5. 下載按鈕事件
+    // 6. 下載按鈕事件
     downloadBtn.addEventListener('click', () => {
         if (!originalImage) {
             alert("請先上傳圖片！");
