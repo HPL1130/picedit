@@ -1,12 +1,12 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // DOM 元素獲取
+    // DOM 元素獲取 (保持不變)
     const imageLoader = document.getElementById('imageLoader');
     const textInput = document.getElementById('textInput');
     const fontFamilyControl = document.getElementById('fontFamily');
     const fontSizeControl = document.getElementById('fontSize');
-    const fontWeightControl = document.getElementById('fontWeight'); // 新增
+    const fontWeightControl = document.getElementById('fontWeight');
     const fontColorControl = document.getElementById('fontColor');
-    const textOrientationControl = document.getElementById('textOrientation'); // 新增
+    const textOrientationControl = document.getElementById('textOrientation');
     const downloadFormatControl = document.getElementById('downloadFormat');
     const downloadBtn = document.getElementById('downloadBtn');
     const canvas = document.getElementById('imageCanvas');
@@ -15,9 +15,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let uploadedImage = new Image();
     
-    // 文字位置狀態 (預設為 Canvas 上的百分比，圖片載入後會轉換為像素)
-    let textX = 50; // 初始 X 座標 (百分比)
-    let textY = 50; // 初始 Y 座標 (百分比)
+    // 文字位置狀態：始終使用百分比 (0-100)
+    let textX = 50; 
+    let textY = 50; 
     
     // 拖曳狀態變數
     let isDragging = false;
@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function drawCanvas() {
         if (!uploadedImage.src) return;
 
-        // 1. 設定 Canvas 尺寸與圖片一致
+        // 1. 設定 Canvas 尺寸與圖片一致 (確保匯出時是原始解析度)
         canvas.width = uploadedImage.width;
         canvas.height = uploadedImage.height;
         
@@ -38,60 +38,53 @@ document.addEventListener('DOMContentLoaded', () => {
         // 3. 繪製文字
         const text = textInput.value || "在此輸入文字";
         
-        // 獲取所有控制項的值
+        // 獲取控制項的值
         const fontFamily = fontFamilyControl.value;
         const fontSize = parseInt(fontSizeControl.value, 10);
-        const fontWeight = fontWeightControl.value; // 粗體
+        const fontWeight = fontWeightControl.value;
         const fontColor = fontColorControl.value;
-        const orientation = textOrientationControl.value; // 排版
+        const orientation = textOrientationControl.value;
         
-        // 計算實際像素座標
+        // 核心修改：計算實際像素座標 (基於百分比)
         const x = canvas.width * (textX / 100);
         const y = canvas.height * (textY / 100);
 
         ctx.fillStyle = fontColor;
-        ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`; // 套用粗體和字型
+        // 注意：字體大小仍使用絕對像素值
+        ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`; 
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         
-        // 處理多行文字
-        const lines = text.split('\n');
-        
-        // 設置陰影（保持文字清晰）
+        // 設置陰影
         ctx.shadowColor = 'black';
         ctx.shadowBlur = 4;
         ctx.shadowOffsetX = 2;
         ctx.shadowOffsetY = 2;
 
-        ctx.save(); // 儲存當前 Canvas 狀態
+        ctx.save(); 
 
         if (orientation === 'vertical') {
-            // == 垂直排版邏輯 ==
+            // == 垂直排版邏輯 (保持不變) ==
             
-            // 將 Canvas 旋轉 90 度 (繪圖空間從橫式變為直式)
-            // 將原點平移到文字的起始點
             ctx.translate(x, y);
             
-            const charSpacing = fontSize * 1.5; // 字元間距
-            let lineX = 0; // 垂直排版時，X 座標是行距
+            const charSpacing = fontSize * 1.5;
+            let lineX = 0; 
             
             lines.forEach((line, lineIndex) => {
-                // 每行往右移動
                 lineX = lineIndex * (fontSize + 10); 
                 
                 for (let i = 0; i < line.length; i++) {
                     const char = line[i];
-                    
-                    // 繪製單個字元 (從上到下)
                     ctx.fillText(char, lineX, i * charSpacing);
                 }
             });
             
         } else {
-            // == 橫式排版邏輯 ==
-            
+            // == 橫式排版邏輯 (保持不變) ==
+            const lines = text.split('\n');
             const lineHeight = fontSize * 1.2;
-            let currentY = y - (lines.length - 1) * lineHeight / 2; // 讓多行文字在 Y 點居中
+            let currentY = y - (lines.length - 1) * lineHeight / 2;
 
             lines.forEach(line => {
                 ctx.fillText(line, x, currentY);
@@ -99,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
         
-        ctx.restore(); // 恢復 Canvas 狀態，取消旋轉/平移
+        ctx.restore(); 
 
         // 清除陰影
         ctx.shadowColor = 'transparent';
@@ -110,30 +103,47 @@ document.addEventListener('DOMContentLoaded', () => {
         downloadBtn.disabled = false;
     }
 
-    // --- 拖曳互動邏輯 (核心) ---
+    // --- 拖曳互動邏輯 (核心修改：計算縮放比例) ---
     
-    // 獲取滑鼠在 Canvas 上的座標 (考慮邊界和縮放)
+    // 獲取滑鼠在 Canvas 上的座標，並將其轉換為繪圖時的像素座標
     function getCanvasMousePos(event) {
         const rect = canvas.getBoundingClientRect();
+        
+        // Canvas 在螢幕上顯示的寬度
+        const displayWidth = rect.width; 
+        // Canvas 的實際繪圖寬度 (圖片寬度)
+        const actualWidth = canvas.width; 
+
+        // 計算縮放比例：實際繪圖大小 / 顯示大小
+        const scaleFactor = actualWidth / displayWidth; 
+
         return {
-            x: event.clientX - rect.left,
-            y: event.clientY - rect.top
+            // 點擊位置 - Canvas 左上角距離 * 縮放比例 = 繪圖座標
+            x: (event.clientX - rect.left) * scaleFactor,
+            y: (event.clientY - rect.top) * scaleFactor
         };
     }
+
+    // 將滑鼠的像素座標轉換為百分比座標
+    function getPercentCoords(pixelX, pixelY) {
+        return {
+            x: (pixelX / canvas.width) * 100,
+            y: (pixelY / canvas.height) * 100
+        };
+    }
+
 
     // 滑鼠按下：開始拖曳
     canvas.addEventListener('mousedown', (e) => {
         if (!uploadedImage.src) return;
         
-        // 判斷是否在可拖曳的文字區域內 (這裡只做簡單檢查，即點擊 Canvas 即視為要拖曳文字)
         isDragging = true;
         
-        // 計算拖曳起始點 (用於計算偏移量)
         const pos = getCanvasMousePos(e);
-        dragStartX = pos.x;
+        // 現在 dragStartX/Y 儲存的是繪圖區的像素座標
+        dragStartX = pos.x; 
         dragStartY = pos.y;
         
-        // 避免瀏覽器預設拖曳圖片行為
         e.preventDefault(); 
     });
 
@@ -147,32 +157,38 @@ document.addEventListener('DOMContentLoaded', () => {
         const dx = pos.x - dragStartX;
         const dy = pos.y - dragStartY;
         
-        // 將像素位移轉換為百分比位移
-        const dXPercent = (dx / canvas.width) * 100;
-        const dYPercent = (dy / canvas.height) * 100;
+        // 獲取當前文字的百分比座標
+        const currentTextX_px = canvas.width * (textX / 100);
+        const currentTextY_px = canvas.height * (textY / 100);
+        
+        // 計算文字的新像素座標
+        const newTextX_px = currentTextX_px + dx;
+        const newTextY_px = currentTextY_px + dy;
 
-        // 更新文字的百分比座標
-        textX = Math.min(100, Math.max(0, textX + dXPercent));
-        textY = Math.min(100, Math.max(0, textY + dYPercent));
+        // 將新的像素座標轉換回百分比
+        const newPercent = getPercentCoords(newTextX_px, newTextY_px);
+        
+        // 更新文字的百分比座標，並確保在 0% 到 100% 之間
+        textX = Math.min(100, Math.max(0, newPercent.x));
+        textY = Math.min(100, Math.max(0, newPercent.y));
         
         // 重新設置起始點，準備下一次移動
         dragStartX = pos.x;
         dragStartY = pos.y;
 
-        drawCanvas(); // 重新繪製以顯示拖曳效果
+        drawCanvas();
     });
 
-    // 滑鼠鬆開：結束拖曳
+    // 滑鼠鬆開/離開 (保持不變)
     canvas.addEventListener('mouseup', () => {
         isDragging = false;
     });
 
-    // 滑鼠離開 Canvas 時也停止拖曳
     canvas.addEventListener('mouseleave', () => {
         isDragging = false;
     });
     
-    // --- 其他事件監聽器 ---
+    // --- 其他事件監聽器 (保持不變) ---
 
     // 圖片載入事件
     imageLoader.addEventListener('change', (e) => {
@@ -194,7 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.readAsDataURL(file);
     });
 
-    // 編輯器設定變更事件 (監聽所有控制項)
+    // 編輯器設定變更事件
     [textInput, fontFamilyControl, fontSizeControl, fontWeightControl, fontColorControl, textOrientationControl].forEach(control => {
         control.addEventListener('input', drawCanvas);
     });
