@@ -11,8 +11,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const downloadBtn = document.getElementById('downloadBtn');
     
     // 獲取佔位符相關元素
-    const canvasWrapper = document.querySelector('.canvas-wrapper'); // 關鍵：獲取父容器
-    const placeholder = document.getElementById('canvasPlaceholder');
+    const canvasWrapper = document.querySelector('.canvas-wrapper'); 
+    let placeholder = document.getElementById('canvasPlaceholder'); // 注意：這裡使用 let
     const loadingIndicator = document.getElementById('loadingIndicator'); 
     
     const saveStateBtn = document.getElementById('saveStateBtn');
@@ -30,10 +30,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let canvas = null;
     let originalImage = null;
     let fontsLoaded = false;
-    
+
     // --- 輔助函數 ---
 
     function toggleControls(activeObject) {
+        // ... (保持不變)
         const isText = activeObject && activeObject.type === 'text';
         
         [textInput, fontFamilyControl, fontSizeControl, fontWeightControl, 
@@ -53,6 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function syncControlsFromObject(obj) {
+        // ... (保持不變)
         textInput.value = obj.text;
         fontFamilyControl.value = obj.fontFamily;
         fontSizeControl.value = obj.fontSize;
@@ -73,7 +75,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 核心與初始化函數 ---
     
-    // [修復點 1] initializeCanvas: 重置 Canvas 狀態
+    // [新輔助函數] 處理佔位符顯示
+    function showPlaceholder(message, showLoadingIndicator = false) {
+        // 如果佔位符被移除，則重新加入
+        if (!placeholder.parentNode) {
+            canvasWrapper.appendChild(placeholder);
+        }
+        canvasWrapper.classList.add('loading-state');
+        placeholder.innerHTML = message + (showLoadingIndicator ? '<span id="loadingIndicator" style="display: block; margin-top: 10px; font-weight: bold;">正在載入...</span>' : '');
+        // 重新獲取 loadingIndicator 避免 null
+        const indicator = document.getElementById('loadingIndicator');
+        if (indicator && !showLoadingIndicator) indicator.style.display = 'none';
+    }
+
+    // [新輔助函數] 處理佔位符隱藏
+    function hidePlaceholder() {
+        // 關鍵步驟：載入成功後，直接從 DOM 移除整個佔位符元素
+        canvasWrapper.classList.remove('loading-state');
+        if (placeholder.parentNode) {
+            placeholder.parentNode.removeChild(placeholder);
+        }
+    }
+
+
     function initializeCanvas() {
         const canvasElement = document.getElementById('imageCanvas');
         
@@ -98,59 +122,27 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         
-        // 關鍵修復：每次初始化時，將佔位符父容器標記為載入狀態 (顯示提示)
-        canvasWrapper.classList.add('loading-state');
-        
-        loadingIndicator.style.display = 'none'; // 預設隱藏載入動畫
-        placeholder.innerHTML = fontsLoaded 
+        // 初始狀態：顯示就緒提示
+        const initialMessage = fontsLoaded 
             ? '👆 請先選擇一張圖片，然後點擊文字進行拖曳'
             : '正在載入字體，請稍候...';
+            
+        showPlaceholder(initialMessage, !fontsLoaded);
             
         originalImage = null;
         downloadBtn.disabled = true;
         
         toggleControls(null);
         
-        // 如果字體已載入，且沒有載入狀態，則移除載入標記，顯示就緒提示
+        // 字體載入完成後，立即隱藏載入指示器
         if (fontsLoaded) {
-            canvasWrapper.classList.remove('loading-state');
+            hidePlaceholder(); 
+            showPlaceholder('👆 請先選擇一張圖片，然後點擊文字進行拖曳', false); // 保持就緒提示可見，但不顯示載入動畫
         }
     }
     
-    function updateActiveObjectProperties() {
-        const activeObject = canvas.getActiveObject();
-        if (!activeObject || activeObject.type !== 'text') return;
-        
-        const orientation = textOrientationControl.value;
-        const textValue = textInput.value || "請輸入文字";
-        
-        const newFontSize = parseInt(fontSizeControl.value, 10);
-        const newFontFamily = fontFamilyControl.value;
-        const newFillColor = fontColorControl.value;
-        const newFontWeight = fontWeightControl.value;
-        const newCharSpacing = parseInt(charSpacingControl.value, 10);
-        const newOpacity = parseFloat(opacityControl.value / 100);
-        const textAngle = orientation === 'vertical' ? 90 : 0; 
-
-        activeObject.set({
-            text: textValue,
-            fontSize: newFontSize,
-            fontFamily: newFontFamily,
-            fill: newFillColor,
-            fontWeight: newFontWeight,
-            charSpacing: newCharSpacing,
-            opacity: newOpacity,
-            angle: textAngle,
-            shadow: '4px 4px 5px rgba(0,0,0,0.5)',
-            stroke: '#000000',
-            strokeWidth: 2,
-        });
-
-        activeObject.setCoords(); 
-        canvas.requestRenderAll();
-    }
-    
     function addNewTextObject() {
+        // ... (保持不變)
         if (!canvas || !originalImage) {
             alert('請先載入圖片！');
             return;
@@ -181,14 +173,12 @@ document.addEventListener('DOMContentLoaded', () => {
         canvas.fire('selection:created', { target: newText }); 
     }
     
-    // [修復點 2] loadImageToCanvas: 嚴格控制載入狀態
+    // [核心修復點] loadImageToCanvas
     function loadImageToCanvas(imgSource) {
-        initializeCanvas(); // 重置 Canvas 和狀態
+        initializeCanvas(); 
         
         // 顯示載入狀態
-        canvasWrapper.classList.add('loading-state');
-        loadingIndicator.style.display = 'block'; 
-        placeholder.textContent = '正在載入圖片並初始化...';
+        showPlaceholder('正在載入圖片並初始化...', true);
 
         fabric.Image.fromURL(imgSource, function(img) {
             
@@ -206,11 +196,8 @@ document.addEventListener('DOMContentLoaded', () => {
             
                 downloadBtn.disabled = false;
                 
-                // 關鍵修復：載入和初始化完成，移除父容器上的載入標記
-                loadingIndicator.style.display = 'none'; 
-                canvasWrapper.classList.remove('loading-state'); // <-- 移除 class，CSS 負責隱藏浮水印
-                placeholder.textContent = ''; 
-                placeholder.style.display = 'none'; // 額外保險
+                // 關鍵修復：載入和初始化完成，直接從 DOM 移除提示！
+                hidePlaceholder();
 
             }, { 
                 scaleX: 1, 
@@ -221,9 +208,8 @@ document.addEventListener('DOMContentLoaded', () => {
             crossOrigin: 'anonymous', 
             onError: function(err) {
                 // 載入失敗處理
-                loadingIndicator.style.display = 'none'; 
-                canvasWrapper.classList.remove('loading-state'); // 失敗也要移除 class
-                placeholder.textContent = "👆 載入失敗！請確認圖片格式 (PNG/JPG) 及檔案大小 (建議小於 5MB)。";
+                showPlaceholder("👆 載入失敗！請確認圖片格式 (PNG/JPG) 及檔案大小 (建議小於 5MB)。", false);
+                console.error("Fabric.js 載入 Base64 數據失敗！", err);
             }
         }); 
     }
@@ -241,18 +227,13 @@ document.addEventListener('DOMContentLoaded', () => {
         initializeCanvas(); 
 
         // 顯示載入狀態
-        canvasWrapper.classList.add('loading-state');
-        loadingIndicator.style.display = 'block'; 
-        placeholder.textContent = '正在載入暫存狀態...';
+        showPlaceholder('正在載入暫存狀態...', true);
 
         canvas.loadFromJSON(json, function() {
             canvas.renderAll();
             
             // 載入完成，隱藏提示
-            loadingIndicator.style.display = 'none'; 
-            canvasWrapper.classList.remove('loading-state'); // <-- 移除 class
-            placeholder.textContent = ''; 
-            placeholder.style.display = 'none';
+            hidePlaceholder();
             
             downloadBtn.disabled = false;
             
@@ -267,7 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- 事件監聽器與初始化 ---
+    // --- 事件監聽器與初始化 (保持不變) ---
 
     // 1. [Web Font] 
     document.fonts.ready.then(() => {
