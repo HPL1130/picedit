@@ -57,14 +57,14 @@
                     <label for="textOrientation">排版：</label>
                     <select id="textOrientation">
                         <option value="horizontal">橫式</option>
-                        <option value="vertical">直式 (透過旋轉實現)</option>
+                        <option value="vertical">直式 (旋轉實現)</option>
                     </select>
                 </div>
             </div>
         </div>
 
         <div class="canvas-wrapper">
-            <canvas id="imageCanvas"></canvas>
+            <canvas id="imageCanvas"></canvas> 
             <p id="canvasPlaceholder">👆 請先選擇一張圖片，然後點擊文字進行拖曳</p>
         </div>
 
@@ -73,7 +73,11 @@
             <select id="downloadFormat">
                 <option value="image/png">PNG (推薦，無失真)</option>
                 <option value="image/jpeg">JPEG (檔案小)</option>
-            </select>
+            </option>
             <button id="downloadBtn" disabled>下載製作好的圖片</button>
         </div>
     </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
