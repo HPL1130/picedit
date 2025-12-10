@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // 獲取所有 DOM 元素
+    // 獲取所有 DOM 元素 (保持不變)
     const imageLoader = document.getElementById('imageLoader');
     const textInput = document.getElementById('textInput');
     const fontFamilyControl = document.getElementById('fontFamily');
@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const charSpacingControl = document.getElementById('charSpacing');
     const opacityControl = document.getElementById('opacity');
     
-    // [新增] 獲取新的圖層控制項
+    // 獲取新的圖層控制項
     const addTextBtn = document.getElementById('addTextBtn');
     const bringToFrontBtn = document.getElementById('bringToFrontBtn');
     const sendToBackBtn = document.getElementById('sendToBackBtn');
@@ -28,36 +28,27 @@ document.addEventListener('DOMContentLoaded', () => {
     let originalImage = null;
     let fontsLoaded = false;
     
-    // --- 輔助函數：啟用/禁用控制項 ---
+    // --- 輔助函數：啟用/禁用控制項 (保持不變) ---
 
-    // 根據選中物件的類型，啟用或禁用控制面板
     function toggleControls(activeObject) {
-        // 假設控制項應預設禁用
         const isText = activeObject && activeObject.type === 'text';
         
-        // 文字屬性控制
         [textInput, fontFamilyControl, fontSizeControl, fontWeightControl, 
          fontColorControl, textOrientationControl, charSpacingControl, opacityControl].forEach(control => {
             control.disabled = !isText;
         });
         
-        // 刪除按鈕
         deleteTextBtn.disabled = !activeObject;
-        
-        // 圖層按鈕
         bringToFrontBtn.disabled = !activeObject;
         sendToBackBtn.disabled = !activeObject;
         
         if (isText) {
-             // 將選中物件的屬性同步到控制項
              syncControlsFromObject(activeObject);
         } else {
-            // 如果沒有選中文字物件，清空輸入框
             textInput.value = '';
         }
     }
 
-    // 將物件的屬性同步到控制面板
     function syncControlsFromObject(obj) {
         textInput.value = obj.text;
         fontFamilyControl.value = obj.fontFamily;
@@ -69,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
         opacityControl.value = obj.opacity * 100 || 100;
     }
 
-    // --- 資料持久化函數 (微調，以支援多物件) ---
+    // --- 資料持久化函數 (保持不變) ---
 
     function saveCanvasState() {
         if (!canvas) return;
@@ -77,7 +68,6 @@ document.addEventListener('DOMContentLoaded', () => {
         canvas.renderAll();
         
         try {
-            // 儲存整個 Canvas 狀態
             const json = canvas.toJSON(['backgroundImage', 'objects', 'originalImage']);
             localStorage.setItem(STORAGE_KEY, JSON.stringify(json));
             alert('編輯狀態已成功暫存於瀏覽器！');
@@ -106,14 +96,13 @@ document.addEventListener('DOMContentLoaded', () => {
         canvas.loadFromJSON(json, function() {
             canvas.renderAll();
             loadingIndicator.style.display = 'none'; 
-            placeholder.style.display = 'none';
+            placeholder.style.display = 'none'; // [修復點] 載入成功後隱藏佔位符
             downloadBtn.disabled = false;
             
-            // 嘗試選中第一個文字物件，並同步控制項
             const firstTextObj = canvas.getObjects().find(obj => obj.type === 'text');
             if (firstTextObj) {
                 canvas.setActiveObject(firstTextObj);
-                canvas.fire('selection:created', { target: firstTextObj }); // 手動觸發選中事件
+                canvas.fire('selection:created', { target: firstTextObj });
             }
             toggleControls(firstTextObj);
             
@@ -129,7 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- 核心與初始化函數 ---
+    // --- 核心與初始化函數 (保持不變) ---
     
     function initializeCanvas() {
         const canvasElement = document.getElementById('imageCanvas');
@@ -141,16 +130,14 @@ document.addEventListener('DOMContentLoaded', () => {
         
         canvas = new fabric.Canvas(canvasElement, {
             enablePointerEvents: true,
-            selection: true // 確保可以選擇多個物件
+            selection: true
         });
         
-        // 綁定 Fabric.js 事件監聽器
         canvas.on({
             'selection:created': (e) => toggleControls(e.selected[0]),
             'selection:updated': (e) => toggleControls(e.selected[0]),
             'selection:cleared': () => toggleControls(null),
             'object:modified': (e) => {
-                // 當物件移動或縮放時，更新控制項狀態（主要用於確保屬性是最新的）
                 if (e.target && e.target.type === 'text') {
                      syncControlsFromObject(e.target);
                 }
@@ -166,11 +153,9 @@ document.addEventListener('DOMContentLoaded', () => {
         originalImage = null;
         downloadBtn.disabled = true;
         
-        // 初始禁用所有控制項
         toggleControls(null);
     }
 
-    // [修改] 現在此函數是更新選中的物件
     function updateActiveObjectProperties() {
         const activeObject = canvas.getActiveObject();
         if (!activeObject || activeObject.type !== 'text') return;
@@ -178,7 +163,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const orientation = textOrientationControl.value;
         const textValue = textInput.value || "請輸入文字";
         
-        // 取得所有控制項的值
         const newFontSize = parseInt(fontSizeControl.value, 10);
         const newFontFamily = fontFamilyControl.value;
         const newFillColor = fontColorControl.value;
@@ -187,7 +171,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const newOpacity = parseFloat(opacityControl.value / 100);
         const textAngle = orientation === 'vertical' ? 90 : 0; 
 
-        // 批量設定屬性
         activeObject.set({
             text: textValue,
             fontSize: newFontSize,
@@ -199,19 +182,16 @@ document.addEventListener('DOMContentLoaded', () => {
             angle: textAngle
         });
         
-        // 確保陰影和描邊屬性保持一致
         activeObject.set({
             shadow: '4px 4px 5px rgba(0,0,0,0.5)',
             stroke: '#000000',
             strokeWidth: 2,
         });
 
-        // Fabric.js 需要這兩行來重新計算大小和渲染
         activeObject.setCoords(); 
         canvas.requestRenderAll();
     }
     
-    // [新增] 新增文字物件的函數
     function addNewTextObject() {
         if (!canvas || !originalImage) {
             alert('請先載入圖片！');
@@ -220,13 +200,164 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const newText = new fabric.Text("新增的文字", {
             fontSize: 48,
-            fontFamily: fontFamilyControl.value, // 使用當前選單中的字體
-            fill: fontColorControl.value,        // 使用當前選單中的顏色
+            fontFamily: fontFamilyControl.value,
+            fill: fontColorControl.value,
             shadow: '4px 4px 5px rgba(0,0,0,0.5)',
             stroke: '#000000',
             strokeWidth: 2,
             
-            left: canvas.width / 2 + 20, // 稍微偏移，避免與第一個物件重疊
+            left: canvas.width / 2 + 20, 
             top: canvas.height / 2 + 20,
             textAlign: 'center',
-            originX: 'center',
+            originX: 'center', 
+            originY: 'center',
+            hasControls: true, 
+            lockScalingFlip: true,
+            angle: 0
+        });
+        
+        canvas.add(newText);
+        canvas.setActiveObject(newText);
+        canvas.renderAll();
+        
+        canvas.fire('selection:created', { target: newText }); 
+    }
+    
+    // [修復點] 核心函數：載入圖片到 Canvas
+    function loadImageToCanvas(imgSource) {
+        initializeCanvas(); 
+
+        placeholder.style.display = 'block'; 
+        loadingIndicator.style.display = 'block'; 
+        placeholder.textContent = '正在載入圖片並初始化...';
+
+
+        fabric.Image.fromURL(imgSource, function(img) {
+            loadingIndicator.style.display = 'none'; 
+            
+            originalImage = img;
+            
+            canvas.setDimensions({ 
+                width: img.width, 
+                height: img.height 
+            });
+
+            canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), {
+                scaleX: 1, 
+                scaleY: 1
+            });
+            
+            // 載入圖片後，自動新增第一個文字物件
+            addNewTextObject(); 
+            
+            downloadBtn.disabled = false;
+            // [關鍵修復] 載入成功並新增物件後，隱藏佔位符
+            placeholder.style.display = 'none'; 
+
+        }, { 
+            crossOrigin: 'anonymous', 
+            onError: function(err) {
+                loadingIndicator.style.display = 'none'; 
+                console.error("Fabric.js 載入 Base64 數據失敗！", err);
+                placeholder.textContent = "👆 載入失敗！請確認圖片格式 (PNG/JPG) 及檔案大小 (建議小於 5MB)。";
+            }
+        }); 
+    }
+
+    // --- 事件監聽器與初始化 (保持不變) ---
+
+    document.fonts.ready.then(() => {
+        fontsLoaded = true;
+        initializeCanvas(); 
+        checkLocalStorage();
+    }).catch(err => {
+        initializeCanvas();
+        checkLocalStorage(); 
+    });
+
+    imageLoader.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (file.size > 5 * 1024 * 1024) {
+            alert("警告：圖片檔案超過 5MB，手機上可能載入失敗。請嘗試較小的圖片。");
+        }
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            if (fontsLoaded) {
+                loadImageToCanvas(event.target.result); 
+            } else {
+                alert("字體資源尚未載入完成，請稍後再試。");
+            }
+        };
+        reader.readAsDataURL(file);
+    });
+
+    [
+        textInput, fontFamilyControl, fontSizeControl, fontWeightControl, fontColorControl, 
+        textOrientationControl, charSpacingControl, opacityControl 
+    ].forEach(control => {
+        control.addEventListener('input', updateActiveObjectProperties);
+        control.addEventListener('change', updateActiveObjectProperties);
+    });
+    
+    addTextBtn.addEventListener('click', addNewTextObject);
+    
+    bringToFrontBtn.addEventListener('click', () => {
+        const activeObject = canvas.getActiveObject();
+        if (activeObject) {
+            canvas.bringToFront(activeObject);
+            canvas.renderAll();
+        }
+    });
+
+    sendToBackBtn.addEventListener('click', () => {
+        const activeObject = canvas.getActiveObject();
+        if (activeObject) {
+            const backgroundObject = canvas.getObjects()[0];
+            if (activeObject !== backgroundObject) {
+                 canvas.sendBackwards(activeObject, true);
+                 canvas.renderAll();
+            }
+        }
+    });
+
+    deleteTextBtn.addEventListener('click', () => {
+        const activeObject = canvas.getActiveObject();
+        if (activeObject && confirm("確定要移除選中的物件嗎？")) {
+            canvas.remove(activeObject);
+            canvas.renderAll();
+            canvas.discardActiveObject();
+            toggleControls(null);
+        }
+    });
+
+    saveStateBtn.addEventListener('click', saveCanvasState);
+    loadStateBtn.addEventListener('click', loadCanvasState);
+
+    downloadBtn.addEventListener('click', () => {
+        if (!originalImage) {
+            alert("請先上傳圖片！");
+            return;
+        }
+        
+        canvas.discardActiveObject(); 
+        canvas.renderAll();
+
+        const format = downloadFormatControl.value; 
+        let fileExtension = format.split('/')[1];
+
+        const dataURL = canvas.toDataURL({
+            format: fileExtension,
+            quality: fileExtension === 'jpeg' ? 0.9 : 1.0
+        }); 
+
+        const link = document.createElement('a');
+        link.download = `圖像創意文字-${Date.now()}.${fileExtension}`; 
+        link.href = dataURL;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    });
+});
