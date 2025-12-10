@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🎨 圖像創意文字產生器</title>
     
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     
     <link rel="stylesheet" href="style.css"> 
@@ -31,9 +35,9 @@
                 <div class="control-item">
                     <label for="fontFamily">字型：</label>
                     <select id="fontFamily">
+                        <option value="Noto Sans TC, sans-serif">思源黑體 (推薦)</option>
                         <option value="Arial, sans-serif">Arial (預設)</option>
                         <option value="Microsoft JhengHei, sans-serif">微軟正黑體</option>
-                        <option value="Noto Sans TC, sans-serif">思源黑體 (需作業系統支援)</option>
                         <option value="Georgia, serif">Georgia</option>
                         <option value="'Times New Roman', serif">Times New Roman</option>
                         <option value="Impact, sans-serif">Impact</option>
@@ -61,7 +65,7 @@
                     <label for="textOrientation">排版：</label>
                     <select id="textOrientation">
                         <option value="horizontal">橫式</option>
-                        <option value="vertical">直式 (從上往下)</option> 
+                        <option value="vertical">直式 (旋轉模擬)</option> 
                     </select>
                 </div>
             </div>
@@ -73,7 +77,7 @@
             <p id="canvasPlaceholder">
                 👆 請先選擇一張圖片，然後點擊文字進行拖曳
                 <span id="loadingIndicator" style="display: none; margin-top: 10px; font-weight: bold; display: block;">
-                    正在載入圖片並初始化... (需數秒)
+                    正在載入...
                 </span>
             </p>
         </div>
