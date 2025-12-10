@@ -14,29 +14,71 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadingIndicator = document.getElementById('loadingIndicator'); 
     const saveStateBtn = document.getElementById('saveStateBtn');
     const loadStateBtn = document.getElementById('loadStateBtn');
-    
-    // [新增] 獲取間距和透明度控制項
     const charSpacingControl = document.getElementById('charSpacing');
     const opacityControl = document.getElementById('opacity');
+    
+    // [新增] 獲取新的圖層控制項
+    const addTextBtn = document.getElementById('addTextBtn');
+    const bringToFrontBtn = document.getElementById('bringToFrontBtn');
+    const sendToBackBtn = document.getElementById('sendToBackBtn');
 
     const STORAGE_KEY = 'image_editor_state';
 
     let canvas = null;
-    let currentTextObject = null;
     let originalImage = null;
     let fontsLoaded = false;
     
-    // --- 資料持久化函數 ---
+    // --- 輔助函數：啟用/禁用控制項 ---
+
+    // 根據選中物件的類型，啟用或禁用控制面板
+    function toggleControls(activeObject) {
+        // 假設控制項應預設禁用
+        const isText = activeObject && activeObject.type === 'text';
+        
+        // 文字屬性控制
+        [textInput, fontFamilyControl, fontSizeControl, fontWeightControl, 
+         fontColorControl, textOrientationControl, charSpacingControl, opacityControl].forEach(control => {
+            control.disabled = !isText;
+        });
+        
+        // 刪除按鈕
+        deleteTextBtn.disabled = !activeObject;
+        
+        // 圖層按鈕
+        bringToFrontBtn.disabled = !activeObject;
+        sendToBackBtn.disabled = !activeObject;
+        
+        if (isText) {
+             // 將選中物件的屬性同步到控制項
+             syncControlsFromObject(activeObject);
+        } else {
+            // 如果沒有選中文字物件，清空輸入框
+            textInput.value = '';
+        }
+    }
+
+    // 將物件的屬性同步到控制面板
+    function syncControlsFromObject(obj) {
+        textInput.value = obj.text;
+        fontFamilyControl.value = obj.fontFamily;
+        fontSizeControl.value = obj.fontSize;
+        fontColorControl.value = obj.fill;
+        fontWeightControl.value = obj.fontWeight;
+        textOrientationControl.value = obj.angle === 90 ? 'vertical' : 'horizontal';
+        charSpacingControl.value = obj.charSpacing || 0;
+        opacityControl.value = obj.opacity * 100 || 100;
+    }
+
+    // --- 資料持久化函數 (微調，以支援多物件) ---
 
     function saveCanvasState() {
         if (!canvas) return;
-        
         canvas.discardActiveObject();
         canvas.renderAll();
         
         try {
-            // 將整個 Canvas 狀態轉換為 JSON 字串並儲存
-            const json = canvas.toJSON(['backgroundImage', 'objects']);
+            // 儲存整個 Canvas 狀態
+            const json = canvas.toJSON(['backgroundImage', 'objects', 'originalImage']);
             localStorage.setItem(STORAGE_KEY, JSON.stringify(json));
             alert('編輯狀態已成功暫存於瀏覽器！');
             checkLocalStorage();
@@ -67,33 +109,15 @@ document.addEventListener('DOMContentLoaded', () => {
             placeholder.style.display = 'none';
             downloadBtn.disabled = false;
             
-            // 重新建立 currentTextObject 引用 (只找第一個文字物件)
-            const textObj = canvas.getObjects().find(obj => obj.type === 'text');
-            if (textObj) {
-                currentTextObject = textObj;
-                canvas.setActiveObject(currentTextObject);
-                deleteTextBtn.disabled = false;
-                
-                // 更新控制項狀態以匹配載入的物件
-                textInput.value = currentTextObject.text;
-                fontFamilyControl.value = currentTextObject.fontFamily;
-                fontSizeControl.value = currentTextObject.fontSize;
-                fontColorControl.value = currentTextObject.fill;
-                fontWeightControl.value = currentTextObject.fontWeight;
-                textOrientationControl.value = currentTextObject.angle === 90 ? 'vertical' : 'horizontal';
-                
-                // [新增] 載入間距和透明度值
-                charSpacingControl.value = currentTextObject.charSpacing || 0;
-                opacityControl.value = currentTextObject.opacity * 100 || 100;
-
-            } else {
-                deleteTextBtn.disabled = true;
+            // 嘗試選中第一個文字物件，並同步控制項
+            const firstTextObj = canvas.getObjects().find(obj => obj.type === 'text');
+            if (firstTextObj) {
+                canvas.setActiveObject(firstTextObj);
+                canvas.fire('selection:created', { target: firstTextObj }); // 手動觸發選中事件
             }
+            toggleControls(firstTextObj);
+            
             alert('暫存狀態已成功載入！');
-        }, function(o, object) {
-            if (object && object.type === 'image') {
-                originalImage = object; 
-            }
         });
     }
 
@@ -116,7 +140,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         canvas = new fabric.Canvas(canvasElement, {
-            enablePointerEvents: true 
+            enablePointerEvents: true,
+            selection: true // 確保可以選擇多個物件
+        });
+        
+        // 綁定 Fabric.js 事件監聽器
+        canvas.on({
+            'selection:created': (e) => toggleControls(e.selected[0]),
+            'selection:updated': (e) => toggleControls(e.selected[0]),
+            'selection:cleared': () => toggleControls(null),
+            'object:modified': (e) => {
+                // 當物件移動或縮放時，更新控制項狀態（主要用於確保屬性是最新的）
+                if (e.target && e.target.type === 'text') {
+                     syncControlsFromObject(e.target);
+                }
+            }
         });
         
         placeholder.style.display = 'block'; 
@@ -125,201 +163,70 @@ document.addEventListener('DOMContentLoaded', () => {
             : '正在載入字體，請稍候...';
             
         loadingIndicator.style.display = 'none'; 
-        currentTextObject = null;
         originalImage = null;
         downloadBtn.disabled = true;
-        deleteTextBtn.disabled = true; 
+        
+        // 初始禁用所有控制項
+        toggleControls(null);
     }
 
-    // [核心修改] updateTextProperties 函數 - 加入間距和透明度屬性
-    function updateTextProperties() {
-        if (!canvas) return;
+    // [修改] 現在此函數是更新選中的物件
+    function updateActiveObjectProperties() {
+        const activeObject = canvas.getActiveObject();
+        if (!activeObject || activeObject.type !== 'text') return;
         
         const orientation = textOrientationControl.value;
         const textValue = textInput.value || "請輸入文字";
+        
+        // 取得所有控制項的值
         const newFontSize = parseInt(fontSizeControl.value, 10);
         const newFontFamily = fontFamilyControl.value;
         const newFillColor = fontColorControl.value;
         const newFontWeight = fontWeightControl.value;
-        const shadowStyle = '4px 4px 5px rgba(0,0,0,0.5)';
-        const strokeColor = '#000000';
-        const strokeWidth = 2;
-        
-        // [關鍵] 獲取新的屬性值
         const newCharSpacing = parseInt(charSpacingControl.value, 10);
         const newOpacity = parseFloat(opacityControl.value / 100);
-
         const textAngle = orientation === 'vertical' ? 90 : 0; 
 
-        if (currentTextObject) {
-            canvas.remove(currentTextObject);
-            currentTextObject = null;
-        }
-
-        // 創建單個高性能的 fabric.Text 物件
-        currentTextObject = new fabric.Text(textValue, {
+        // 批量設定屬性
+        activeObject.set({
+            text: textValue,
             fontSize: newFontSize,
             fontFamily: newFontFamily,
             fill: newFillColor,
             fontWeight: newFontWeight,
-            shadow: shadowStyle,
-            stroke: strokeColor,
-            strokeWidth: strokeWidth,
-            
-            // [關鍵] 應用新的屬性
-            charSpacing: newCharSpacing, 
+            charSpacing: newCharSpacing,
             opacity: newOpacity,
-            
-            left: canvas.width / 2,
-            top: canvas.height / 2,
-            textAlign: 'center',
-            originX: 'center', 
-            originY: 'center',
-            hasControls: true, 
-            lockScalingFlip: true,
-            
             angle: textAngle
         });
         
-        if (currentTextObject) {
-            canvas.add(currentTextObject);
-            canvas.setActiveObject(currentTextObject);
-            deleteTextBtn.disabled = false;
-        } else {
-            deleteTextBtn.disabled = true;
-        }
+        // 確保陰影和描邊屬性保持一致
+        activeObject.set({
+            shadow: '4px 4px 5px rgba(0,0,0,0.5)',
+            stroke: '#000000',
+            strokeWidth: 2,
+        });
 
+        // Fabric.js 需要這兩行來重新計算大小和渲染
+        activeObject.setCoords(); 
         canvas.requestRenderAll();
     }
     
-    // 核心函數：載入圖片到 Canvas (保持不變)
-    function loadImageToCanvas(imgSource) {
-        initializeCanvas(); 
-
-        placeholder.style.display = 'block'; 
-        loadingIndicator.style.display = 'block'; 
-        placeholder.textContent = '正在載入圖片並初始化...';
-
-
-        fabric.Image.fromURL(imgSource, function(img) {
-            loadingIndicator.style.display = 'none'; 
-            
-            originalImage = img;
-            
-            canvas.setDimensions({ 
-                width: img.width, 
-                height: img.height 
-            });
-
-            canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), {
-                scaleX: 1, 
-                scaleY: 1
-            });
-            
-            updateTextProperties(); 
-            
-            downloadBtn.disabled = false;
-            placeholder.style.display = 'none'; 
-
-        }, { 
-            crossOrigin: 'anonymous', 
-            onError: function(err) {
-                loadingIndicator.style.display = 'none'; 
-                console.error("Fabric.js 載入 Base64 數據失敗！", err);
-                placeholder.textContent = "👆 載入失敗！請確認圖片格式 (PNG/JPG) 及檔案大小 (建議小於 5MB)。";
-            }
-        }); 
-    }
-
-    // --- 事件監聽器與初始化 ---
-
-    // 1. [Web Font] 等待字體載入完成，再進行初始化
-    document.fonts.ready.then(() => {
-        fontsLoaded = true;
-        console.log("Web Fonts 載入完成！");
-        initializeCanvas(); 
-        checkLocalStorage();
-    }).catch(err => {
-        console.error("Web Fonts 載入失敗，使用系統字體。", err);
-        initializeCanvas();
-        checkLocalStorage(); 
-    });
-
-    // 2. 處理使用者上傳圖片
-    imageLoader.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        if (file.size > 5 * 1024 * 1024) {
-            alert("警告：圖片檔案超過 5MB，手機上可能載入失敗。請嘗試較小的圖片。");
-        }
-
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            if (fontsLoaded) {
-                loadImageToCanvas(event.target.result); 
-            } else {
-                alert("字體資源尚未載入完成，請稍後再試。");
-            }
-        };
-        reader.onerror = () => {
-            alert("檔案讀取失敗，請確認檔案類型或大小。");
-        };
-        reader.readAsDataURL(file);
-    });
-
-    // 3. 綁定控制項事件 (新增間距和透明度控制項)
-    [
-        textInput, fontFamilyControl, fontSizeControl, fontWeightControl, fontColorControl, 
-        textOrientationControl, charSpacingControl, opacityControl 
-    ].forEach(control => {
-        control.addEventListener('input', updateTextProperties);
-        control.addEventListener('change', updateTextProperties);
-    });
-
-    // 4. [持久化] 儲存與載入事件
-    saveStateBtn.addEventListener('click', saveCanvasState);
-    loadStateBtn.addEventListener('click', loadCanvasState);
-
-    // 5. 刪除按鈕事件處理
-    deleteTextBtn.addEventListener('click', () => {
-        if (currentTextObject && confirm("確定要移除目前的文字物件嗎？")) {
-            canvas.remove(currentTextObject);
-            currentTextObject = null;
-            canvas.renderAll();
-            textInput.value = ""; 
-            deleteTextBtn.disabled = true;
-        }
-    });
-
-    // 6. 下載按鈕事件
-    downloadBtn.addEventListener('click', () => {
-        if (!originalImage) {
-            alert("請先上傳圖片！");
+    // [新增] 新增文字物件的函數
+    function addNewTextObject() {
+        if (!canvas || !originalImage) {
+            alert('請先載入圖片！');
             return;
         }
         
-        canvas.discardActiveObject(); 
-        canvas.renderAll();
-
-        const format = downloadFormatControl.value; 
-        let fileExtension = format.split('/')[1];
-
-        const dataURL = canvas.toDataURL({
-            format: fileExtension,
-            quality: fileExtension === 'jpeg' ? 0.9 : 1.0
-        }); 
-
-        const link = document.createElement('a');
-        link.download = `圖像創意文字-${Date.now()}.${fileExtension}`; 
-        link.href = dataURL;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        if (currentTextObject) {
-            canvas.setActiveObject(currentTextObject);
-            canvas.renderAll();
-        }
-    });
-});
+        const newText = new fabric.Text("新增的文字", {
+            fontSize: 48,
+            fontFamily: fontFamilyControl.value, // 使用當前選單中的字體
+            fill: fontColorControl.value,        // 使用當前選單中的顏色
+            shadow: '4px 4px 5px rgba(0,0,0,0.5)',
+            stroke: '#000000',
+            strokeWidth: 2,
+            
+            left: canvas.width / 2 + 20, // 稍微偏移，避免與第一個物件重疊
+            top: canvas.height / 2 + 20,
+            textAlign: 'center',
+            originX: 'center',
