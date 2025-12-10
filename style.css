@@ -133,7 +133,7 @@ button[disabled] {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(255, 255, 255, 0.9);
+    background-color: rgba(255, 255, 255, 0.9); /* 半透明白色遮罩 */
     display: flex; 
     align-items: center;
     justify-content: center;
@@ -143,8 +143,7 @@ button[disabled] {
     color: #666;
     padding: 20px;
     box-sizing: border-box;
-    /* 預設是顯示的，由 JS 判斷隱藏時機 */
-    z-index: 5;
+    z-index: 10; 
 }
 
 #loadingIndicator {
@@ -153,23 +152,21 @@ button[disabled] {
     margin-top: 10px;
 }
 
-/* --- 關鍵修復：載入狀態控制 CSS --- */
+/* --- 關鍵修復區：載入狀態控制 CSS (解決浮水印殘留) --- */
 
-/* 確保佔位符在載入狀態時顯示在最上層 */
+/* 非載入狀態下：強制將提示完全隱藏，消除浮水印 */
+.canvas-wrapper:not(.loading-state) #canvasPlaceholder {
+    display: none !important; 
+    visibility: hidden !important; 
+    z-index: -1; /* 將層級降到最低，確保不遮擋滑鼠點擊 */
+}
+
+/* 載入狀態下：強制顯示提示和載入指示器 */
 .canvas-wrapper.loading-state #canvasPlaceholder {
     display: flex !important; 
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
     z-index: 10; 
 }
 
-/* 非載入狀態下，強制隱藏佔位符 (圖片載入完成後，JS 會移除 loading-state) */
-.canvas-wrapper:not(.loading-state) #canvasPlaceholder {
-    display: none !important;
-}
-
-/* 確保載入指示器在載入狀態時顯示 */
 .canvas-wrapper.loading-state #loadingIndicator {
     display: block !important;
 }
