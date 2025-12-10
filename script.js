@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // 獲取所有 DOM 元素
+    // 獲取所有 DOM 元素 (與之前一致)
     const imageLoader = document.getElementById('imageLoader');
     const textInput = document.getElementById('textInput');
     const fontFamilyControl = document.getElementById('fontFamily');
@@ -24,16 +24,13 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (canvas) {
             canvas.clear();
-            // 關鍵：釋放記憶體，避免手機崩潰
             canvas.dispose(); 
         }
         
-        // 創建新的 Fabric.js 實例
         canvas = new fabric.Canvas(canvasElement, {
             enablePointerEvents: true 
         });
         
-        // 確保初始狀態正確
         placeholder.style.display = 'block'; 
         loadingIndicator.style.display = 'none'; 
         currentTextObject = null;
@@ -42,27 +39,110 @@ document.addEventListener('DOMContentLoaded', () => {
         deleteTextBtn.disabled = true; 
     }
 
+    // [核心修改] 處理文字屬性更新和直式排版邏輯
     function updateTextProperties() {
-        if (!currentTextObject) return;
-
+        if (!canvas) return;
+        
         const orientation = textOrientationControl.value;
         const textValue = textInput.value || "請輸入文字";
+        const newFontSize = parseInt(fontSizeControl.value, 10);
+        const newFontFamily = fontFamilyControl.value;
+        const newFillColor = fontColorControl.value;
+        const newFontWeight = fontWeightControl.value;
+        const shadowStyle = '4px 4px 5px rgba(0,0,0,0.5)';
+        const strokeColor = '#000000';
+        const strokeWidth = 2;
 
-        currentTextObject.set({
-            text: textValue,
-            fontFamily: fontFamilyControl.value,
-            fontSize: parseInt(fontSizeControl.value, 10),
-            fill: fontColorControl.value,
-            fontWeight: fontWeightControl.value,
-            shadow: '4px 4px 5px rgba(0,0,0,0.5)', 
-            // [UX 優化] 描邊設定
-            stroke: '#000000',     
-            strokeWidth: 2,        
-            // [排版] 直式旋轉
-            angle: orientation === 'vertical' ? 90 : 0, 
-            width: orientation === 'vertical' ? currentTextObject.fontSize * 1.5 : undefined,
-            textAlign: 'center'
-        });
+        // 如果文字物件已經存在，先從 Canvas 上移除
+        if (currentTextObject) {
+            canvas.remove(currentTextObject);
+            currentTextObject = null;
+        }
+
+        if (orientation === 'vertical') {
+            // == [真正的直式排版]：創建單字物件群組 ==
+            
+            const lines = textValue.split('\n');
+            const characterObjects = [];
+            
+            // 計算 Y 軸偏移，確保文字頂部對齊 (Top alignment)
+            let currentY = 0; 
+            
+            // 處理多行文字 (直式排版中，我們將每一行視為一個垂直堆疊的字組)
+            lines.forEach((line, lineIndex) => {
+                if (!line) return;
+                
+                // 每個字組開始時，從 Y 軸的頂部重新開始堆疊
+                let lineGroupHeight = 0;
+                
+                // 將每個字元轉換為一個獨立的 Fabric.Text 物件
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+                    const charObject = new fabric.Text(char, {
+                        fontSize: newFontSize,
+                        fontFamily: newFontFamily,
+                        fill: newFillColor,
+                        fontWeight: newFontWeight,
+                        shadow: shadowStyle,
+                        stroke: strokeColor,
+                        strokeWidth: strokeWidth,
+                        
+                        // 定位：確保在 Group 內部正確堆疊
+                        left: 0, 
+                        top: lineGroupHeight,
+                        originX: 'center',
+                        originY: 'top',
+                    });
+                    
+                    characterObjects.push(charObject);
+                    lineGroupHeight += newFontSize * 1.2; // 調整行距 (1.2倍字體大小)
+                }
+                
+                // 處理換行（此處只是將文字物件一個接一個堆疊）
+                currentY = Math.max(currentY, lineGroupHeight); 
+            });
+            
+            // 將所有單字物件組合成一個群組
+            currentTextObject = new fabric.Group(characterObjects, {
+                // 將群組置於 Canvas 中央
+                left: canvas.width / 2,
+                top: canvas.height / 2,
+                originX: 'center',
+                originY: 'center',
+                hasControls: true, 
+                lockScalingFlip: true 
+            });
+
+        } else {
+            // == [橫式排版]：使用單個文字物件 (與之前邏輯一致) ==
+            currentTextObject = new fabric.Text(textValue, {
+                fontSize: newFontSize,
+                fontFamily: newFontFamily,
+                fill: newFillColor,
+                fontWeight: newFontWeight,
+                shadow: shadowStyle,
+                stroke: strokeColor,
+                strokeWidth: strokeWidth,
+                
+                left: canvas.width / 2,
+                top: canvas.height / 2,
+                textAlign: 'center',
+                originX: 'center', 
+                originY: 'center',
+                hasControls: true, 
+                lockScalingFlip: true 
+            });
+        }
+        
+        // 確保有物件時才加入和啟用按鈕
+        if (currentTextObject) {
+            canvas.add(currentTextObject);
+            canvas.setActiveObject(currentTextObject);
+            deleteTextBtn.disabled = false;
+        } else {
+            deleteTextBtn.disabled = true;
+        }
+
         canvas.requestRenderAll();
     }
     
@@ -71,12 +151,11 @@ document.addEventListener('DOMContentLoaded', () => {
         initializeCanvas(); 
 
         placeholder.style.display = 'block'; 
-        loadingIndicator.style.display = 'block'; // [UX 優化] 顯示載入指示
+        loadingIndicator.style.display = 'block'; 
 
-        // 使用 Fabric.Image.fromURL 載入 Base64 數據
         fabric.Image.fromURL(imgSource, function(img) {
             // == 載入成功時執行 ==
-            loadingIndicator.style.display = 'none'; // 載入成功後隱藏
+            loadingIndicator.style.display = 'none'; 
             
             originalImage = img;
             
@@ -90,30 +169,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 scaleY: 1
             });
             
-            // 創建文字物件 (使用當前控制項設定)
-            currentTextObject = new fabric.Text(textInput.value || '點擊我並輸入文字', {
-                left: img.width / 2, 
-                top: img.height / 2,
-                fill: fontColorControl.value,
-                fontSize: parseInt(fontSizeControl.value, 10),
-                textAlign: 'center',
-                originX: 'center', 
-                originY: 'center',
-                hasControls: true, 
-                lockScalingFlip: true 
-            });
-            
-            canvas.add(currentTextObject);
-            canvas.setActiveObject(currentTextObject);
-            
+            // 初始化文字物件（重要：這裡不再創建文字，而是直接呼叫 updateTextProperties）
             updateTextProperties(); 
+            
             downloadBtn.disabled = false;
-            deleteTextBtn.disabled = false; // [UX 優化] 啟用刪除按鈕
             placeholder.style.display = 'none'; 
 
         }, { 
             crossOrigin: 'anonymous', 
-            // 載入失敗時的錯誤捕獲
             onError: function(err) {
                 loadingIndicator.style.display = 'none'; 
                 console.error("Fabric.js 載入 Base64 數據失敗！", err);
@@ -146,13 +209,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. 網頁載入後立即執行初始化
     initializeCanvas(); 
     
-    // 3. 綁定控制項事件
+    // 3. 綁定控制項事件 (所有控制項現在都觸發更複雜的 updateTextProperties)
     [textInput, fontFamilyControl, fontSizeControl, fontWeightControl, fontColorControl, textOrientationControl].forEach(control => {
         control.addEventListener('input', updateTextProperties);
         control.addEventListener('change', updateTextProperties);
     });
 
-    // 4. [UX 優化] 刪除按鈕事件處理
+    // 4. 刪除按鈕事件處理
     deleteTextBtn.addEventListener('click', () => {
         if (currentTextObject && confirm("確定要移除目前的文字物件嗎？")) {
             canvas.remove(currentTextObject);
@@ -170,7 +233,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
-        // 必須取消選中物件，防止控制框匯出
         canvas.discardActiveObject(); 
         canvas.renderAll();
 
