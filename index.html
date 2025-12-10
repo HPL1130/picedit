@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>純前端圖片文字編輯器</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🌞 免伺服器早安圖製作機</h1>
+        <p class="privacy-note">⚠️ **隱私聲明：** 您的圖片和編輯過程完全在您的瀏覽器中處理，不會上傳到任何伺服器。</p>
+
+        <div class="control-group">
+            <label for="imageLoader">選擇底圖：</label>
+            <input type="file" id="imageLoader" accept="image/*">
+        </div>
+
+        <div class="control-group">
+            <label for="textInput">輸入文字：</label>
+            <textarea id="textInput" placeholder="在此輸入您想新增的早安問候語..." rows="3"></textarea>
+            
+            <label for="fontSize">文字大小：</label>
+            <input type="range" id="fontSize" min="20" max="100" value="48">
+            
+            <label for="fontColor">文字顏色：</label>
+            <input type="color" id="fontColor" value="#ffffff">
+        </div>
+
+        <div class="canvas-wrapper">
+            <canvas id="imageCanvas"></canvas>
+            <p id="canvasPlaceholder">👆 請先選擇一張圖片</p>
+        </div>
+
+        <div class="control-group download-area">
+            <button id="downloadBtn" disabled>下載製作好的圖片 (PNG)</button>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>

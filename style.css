@@ -1,0 +1,98 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f9;
+    color: #333;
+    line-height: 1.6;
+    padding: 20px;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    background: #fff;
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+    color: #007bff;
+    text-align: center;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 10px;
+}
+
+.privacy-note {
+    background-color: #fff3cd;
+    color: #856404;
+    padding: 10px;
+    border: 1px solid #ffeeba;
+    border-radius: 4px;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.control-group {
+    margin-bottom: 20px;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 5px;
+    margin-top: 10px;
+}
+
+input[type="file"], textarea, input[type="range"], input[type="color"] {
+    width: 100%;
+    padding: 8px;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+.canvas-wrapper {
+    position: relative;
+    border: 2px dashed #ccc;
+    background-color: #eee;
+    min-height: 300px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#imageCanvas {
+    display: block;
+    /* Canvas 預設隱藏，直到圖片載入 */
+    display: none; 
+}
+
+#canvasPlaceholder {
+    color: #666;
+    font-size: 1.2em;
+}
+
+#downloadBtn {
+    width: 100%;
+    padding: 15px;
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 1.1em;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+#downloadBtn:hover:not([disabled]) {
+    background-color: #1e7e34;
+}
+
+#downloadBtn[disabled] {
+    background-color: #90ee90;
+    cursor: not-allowed;
+}
