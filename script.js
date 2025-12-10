@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // 獲取所有 DOM 元素 (與之前一致)
+    // 獲取所有 DOM 元素
     const imageLoader = document.getElementById('imageLoader');
     const textInput = document.getElementById('textInput');
     const fontFamilyControl = document.getElementById('fontFamily');
@@ -9,7 +9,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const textOrientationControl = document.getElementById('textOrientation');
     const downloadFormatControl = document.getElementById('downloadFormat');
     const downloadBtn = document.getElementById('downloadBtn');
+    const deleteTextBtn = document.getElementById('deleteTextBtn'); 
     const placeholder = document.getElementById('canvasPlaceholder');
+    const loadingIndicator = document.getElementById('loadingIndicator'); 
 
     let canvas = null;
     let currentTextObject = null;
@@ -22,6 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (canvas) {
             canvas.clear();
+            // 關鍵：釋放記憶體，避免手機崩潰
             canvas.dispose(); 
         }
         
@@ -30,10 +33,13 @@ document.addEventListener('DOMContentLoaded', () => {
             enablePointerEvents: true 
         });
         
+        // 確保初始狀態正確
         placeholder.style.display = 'block'; 
+        loadingIndicator.style.display = 'none'; 
         currentTextObject = null;
         originalImage = null;
         downloadBtn.disabled = true;
+        deleteTextBtn.disabled = true; 
     }
 
     function updateTextProperties() {
@@ -49,6 +55,10 @@ document.addEventListener('DOMContentLoaded', () => {
             fill: fontColorControl.value,
             fontWeight: fontWeightControl.value,
             shadow: '4px 4px 5px rgba(0,0,0,0.5)', 
+            // [UX 優化] 描邊設定
+            stroke: '#000000',     
+            strokeWidth: 2,        
+            // [排版] 直式旋轉
             angle: orientation === 'vertical' ? 90 : 0, 
             width: orientation === 'vertical' ? currentTextObject.fontSize * 1.5 : undefined,
             textAlign: 'center'
@@ -60,12 +70,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function loadImageToCanvas(imgSource) {
         initializeCanvas(); 
 
-        placeholder.style.display = 'block'; // 載入開始時顯示載入中...
+        placeholder.style.display = 'block'; 
+        loadingIndicator.style.display = 'block'; // [UX 優化] 顯示載入指示
 
         // 使用 Fabric.Image.fromURL 載入 Base64 數據
         fabric.Image.fromURL(imgSource, function(img) {
             // == 載入成功時執行 ==
-            console.log("Fabric.js 圖片載入成功！"); 
+            loadingIndicator.style.display = 'none'; // 載入成功後隱藏
             
             originalImage = img;
             
@@ -79,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 scaleY: 1
             });
             
-            // 創建文字物件
+            // 創建文字物件 (使用當前控制項設定)
             currentTextObject = new fabric.Text(textInput.value || '點擊我並輸入文字', {
                 left: img.width / 2, 
                 top: img.height / 2,
@@ -97,13 +108,15 @@ document.addEventListener('DOMContentLoaded', () => {
             
             updateTextProperties(); 
             downloadBtn.disabled = false;
-            placeholder.style.display = 'none'; // 載入成功後隱藏
+            deleteTextBtn.disabled = false; // [UX 優化] 啟用刪除按鈕
+            placeholder.style.display = 'none'; 
 
         }, { 
             crossOrigin: 'anonymous', 
-            // [新增] 載入失敗的回調函數，用於明確診斷錯誤
+            // 載入失敗時的錯誤捕獲
             onError: function(err) {
-                console.error("Fabric.js 載入 Base64 數據失敗！請檢查圖片檔案是否損壞或過大。", err);
+                loadingIndicator.style.display = 'none'; 
+                console.error("Fabric.js 載入 Base64 數據失敗！", err);
                 placeholder.textContent = "👆 載入失敗！請確認圖片格式 (PNG/JPG) 及檔案大小 (建議小於 5MB)。";
             }
         }); 
@@ -116,14 +129,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const file = e.target.files[0];
         if (!file) return;
 
-        // 如果檔案超過 5MB，給予警告 (常見的手機限制)
         if (file.size > 5 * 1024 * 1024) {
             alert("警告：圖片檔案超過 5MB，手機上可能載入失敗。請嘗試較小的圖片。");
         }
 
         const reader = new FileReader();
         reader.onload = (event) => {
-            // [關鍵] 將 Base64 數據傳遞給載入函數
             loadImageToCanvas(event.target.result); 
         };
         reader.onerror = () => {
@@ -141,13 +152,25 @@ document.addEventListener('DOMContentLoaded', () => {
         control.addEventListener('change', updateTextProperties);
     });
 
-    // 4. 下載按鈕事件
+    // 4. [UX 優化] 刪除按鈕事件處理
+    deleteTextBtn.addEventListener('click', () => {
+        if (currentTextObject && confirm("確定要移除目前的文字物件嗎？")) {
+            canvas.remove(currentTextObject);
+            currentTextObject = null;
+            canvas.renderAll();
+            textInput.value = ""; 
+            deleteTextBtn.disabled = true;
+        }
+    });
+
+    // 5. 下載按鈕事件
     downloadBtn.addEventListener('click', () => {
         if (!originalImage) {
             alert("請先上傳圖片！");
             return;
         }
         
+        // 必須取消選中物件，防止控制框匯出
         canvas.discardActiveObject(); 
         canvas.renderAll();
 
@@ -166,7 +189,10 @@ document.addEventListener('DOMContentLoaded', () => {
         link.click();
         document.body.removeChild(link);
         
-        canvas.setActiveObject(currentTextObject);
-        canvas.renderAll();
+        // 重新選中物件，方便繼續編輯
+        if (currentTextObject) {
+            canvas.setActiveObject(currentTextObject);
+            canvas.renderAll();
+        }
     });
 });
