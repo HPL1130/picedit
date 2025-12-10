@@ -17,7 +17,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const charSpacingControl = document.getElementById('charSpacing');
     const opacityControl = document.getElementById('opacity');
     
-    // 獲取新的圖層控制項
     const addTextBtn = document.getElementById('addTextBtn');
     const bringToFrontBtn = document.getElementById('bringToFrontBtn');
     const sendToBackBtn = document.getElementById('sendToBackBtn');
@@ -45,7 +44,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isText) {
              syncControlsFromObject(activeObject);
         } else {
-            // 如果沒有選中物件，將文字輸入框設為提示語
             textInput.value = '請選中 Canvas 上的物件進行編輯'; 
         }
     }
@@ -100,7 +98,6 @@ document.addEventListener('DOMContentLoaded', () => {
             placeholder.style.display = 'none';
             downloadBtn.disabled = false;
             
-            // 嘗試選中第一個文字物件，並同步控制項
             const firstTextObj = canvas.getObjects().find(obj => obj.type === 'text');
             if (firstTextObj) {
                 canvas.setActiveObject(firstTextObj);
@@ -120,9 +117,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- 核心與初始化函數 ---
+    // --- 核心與初始化函數 (保持不變) ---
     
-    // [修復點 1] initializeCanvas: 調整初始顯示內容
     function initializeCanvas() {
         const canvasElement = document.getElementById('imageCanvas');
         
@@ -148,12 +144,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         
         placeholder.style.display = 'block'; 
-        // 關鍵修復：未載入圖片時，不顯示「正在載入」
         placeholder.innerHTML = fontsLoaded 
             ? '👆 請先選擇一張圖片，然後點擊文字進行拖曳'
-            : '正在載入字體，請稍候...'; // 僅在載入字體時顯示載入
+            : '正在載入字體，請稍候...';
             
-        loadingIndicator.style.display = 'none'; // 預設隱藏載入指示器
+        loadingIndicator.style.display = 'none';
         originalImage = null;
         downloadBtn.disabled = true;
         
@@ -222,156 +217,4 @@ document.addEventListener('DOMContentLoaded', () => {
         
         canvas.add(newText);
         canvas.setActiveObject(newText);
-        canvas.renderAll();
-        
-        canvas.fire('selection:created', { target: newText }); 
-    }
-    
-    // [修復點 2] 核心函數：loadImageToCanvas
-    function loadImageToCanvas(imgSource) {
-        // 每次載入圖片前，都要重置 Canvas
-        initializeCanvas(); 
-
-        placeholder.style.display = 'block'; 
-        loadingIndicator.style.display = 'block'; 
-        // 載入圖片時才顯示具體的載入訊息
-        placeholder.textContent = '正在載入圖片並初始化...';
-
-
-        fabric.Image.fromURL(imgSource, function(img) {
-            loadingIndicator.style.display = 'none'; 
-            
-            originalImage = img;
-            
-            canvas.setDimensions({ 
-                width: img.width, 
-                height: img.height 
-            });
-
-            canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), {
-                scaleX: 1, 
-                scaleY: 1
-            });
-            
-            // 載入圖片後，自動新增第一個文字物件
-            addNewTextObject(); 
-            
-            downloadBtn.disabled = false;
-            // 載入成功並新增物件後，隱藏佔位符
-            placeholder.style.display = 'none'; 
-
-        }, { 
-            crossOrigin: 'anonymous', 
-            onError: function(err) {
-                loadingIndicator.style.display = 'none'; 
-                console.error("Fabric.js 載入 Base64 數據失敗！", err);
-                placeholder.textContent = "👆 載入失敗！請確認圖片格式 (PNG/JPG) 及檔案大小 (建議小於 5MB)。";
-            }
-        }); 
-    }
-
-    // --- 事件監聽器與初始化 ---
-
-    // 1. [Web Font] 等待字體載入完成，再進行初始化
-    document.fonts.ready.then(() => {
-        fontsLoaded = true;
-        // 字體載入完畢後，初始化 Canvas
-        initializeCanvas(); 
-        checkLocalStorage();
-    }).catch(err => {
-        initializeCanvas();
-        checkLocalStorage(); 
-    });
-
-    // 2. 處理使用者上傳圖片
-    imageLoader.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        if (file.size > 5 * 1024 * 1024) {
-            alert("警告：圖片檔案超過 5MB，手機上可能載入失敗。請嘗試較小的圖片。");
-        }
-
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            if (fontsLoaded) {
-                loadImageToCanvas(event.target.result); 
-            } else {
-                alert("字體資源尚未載入完成，請稍後再試。");
-            }
-        };
-        reader.readAsDataURL(file);
-    });
-
-    // 3. 綁定控制項事件 (保持不變)
-    [
-        textInput, fontFamilyControl, fontSizeControl, fontWeightControl, fontColorControl, 
-        textOrientationControl, charSpacingControl, opacityControl 
-    ].forEach(control => {
-        control.addEventListener('input', updateActiveObjectProperties);
-        control.addEventListener('change', updateActiveObjectProperties);
-    });
-
-    // 4. 圖層控制事件 (保持不變)
-    addTextBtn.addEventListener('click', addNewTextObject);
-    
-    bringToFrontBtn.addEventListener('click', () => {
-        const activeObject = canvas.getActiveObject();
-        if (activeObject) {
-            canvas.bringToFront(activeObject);
-            canvas.renderAll();
-        }
-    });
-
-    sendToBackBtn.addEventListener('click', () => {
-        const activeObject = canvas.getActiveObject();
-        if (activeObject) {
-            const backgroundObject = canvas.getObjects()[0];
-            if (activeObject !== backgroundObject) {
-                 // 確保物件在背景圖的上方 (index 1)
-                 canvas.sendBackwards(activeObject, true);
-                 canvas.renderAll();
-            }
-        }
-    });
-
-    // 5. 刪除按鈕事件處理 (保持不變)
-    deleteTextBtn.addEventListener('click', () => {
-        const activeObject = canvas.getActiveObject();
-        if (activeObject && confirm("確定要移除選中的物件嗎？")) {
-            canvas.remove(activeObject);
-            canvas.renderAll();
-            canvas.discardActiveObject();
-            toggleControls(null);
-        }
-    });
-
-    // 6. 持久化與下載事件 (保持不變)
-    saveStateBtn.addEventListener('click', saveCanvasState);
-    loadStateBtn.addEventListener('click', loadCanvasState);
-
-    downloadBtn.addEventListener('click', () => {
-        if (!originalImage) {
-            alert("請先上傳圖片！");
-            return;
-        }
-        
-        canvas.discardActiveObject(); 
-        canvas.renderAll();
-
-        const format = downloadFormatControl.value; 
-        let fileExtension = format.split('/')[1];
-
-        const dataURL = canvas.toDataURL({
-            format: fileExtension,
-            quality: fileExtension === 'jpeg' ? 0.9 : 1.0
-        }); 
-
-        const link = document.createElement('a');
-        link.download = `圖像創意文字-${Date.now()}.${fileExtension}`; 
-        link.href = dataURL;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    });
-});
+        canvas.render
