@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const downloadBtn = document.getElementById('downloadBtn');
     
     // 獲取佔位符相關元素
-    const canvasWrapper = document.querySelector('.canvas-wrapper'); // <--- 新增：獲取父容器
+    const canvasWrapper = document.querySelector('.canvas-wrapper'); // 關鍵：獲取父容器
     const placeholder = document.getElementById('canvasPlaceholder');
     const loadingIndicator = document.getElementById('loadingIndicator'); 
     
@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const addTextBtn = document.getElementById('addTextBtn');
     const bringToFrontBtn = document.getElementById('bringToFrontBtn');
     const sendToBackBtn = document.getElementById('sendToBackBtn');
+    const deleteTextBtn = document.getElementById('deleteTextBtn'); 
 
     const STORAGE_KEY = 'image_editor_state';
 
@@ -35,7 +36,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function toggleControls(activeObject) {
         const isText = activeObject && activeObject.type === 'text';
         
-        // ... (toggleControls 保持不變)
         [textInput, fontFamilyControl, fontSizeControl, fontWeightControl, 
          fontColorControl, textOrientationControl, charSpacingControl, opacityControl].forEach(control => {
             control.disabled = !isText;
@@ -53,7 +53,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function syncControlsFromObject(obj) {
-        // ... (syncControlsFromObject 保持不變)
         textInput.value = obj.text;
         fontFamilyControl.value = obj.fontFamily;
         fontSizeControl.value = obj.fontSize;
@@ -99,10 +98,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         
-        // 關鍵修復：每次初始化時，將佔位符父容器標記為顯示
+        // 關鍵修復：每次初始化時，將佔位符父容器標記為載入狀態 (顯示提示)
         canvasWrapper.classList.add('loading-state');
         
-        loadingIndicator.style.display = 'none';
+        loadingIndicator.style.display = 'none'; // 預設隱藏載入動畫
         placeholder.innerHTML = fontsLoaded 
             ? '👆 請先選擇一張圖片，然後點擊文字進行拖曳'
             : '正在載入字體，請稍候...';
@@ -111,6 +110,44 @@ document.addEventListener('DOMContentLoaded', () => {
         downloadBtn.disabled = true;
         
         toggleControls(null);
+        
+        // 如果字體已載入，且沒有載入狀態，則移除載入標記，顯示就緒提示
+        if (fontsLoaded) {
+            canvasWrapper.classList.remove('loading-state');
+        }
+    }
+    
+    function updateActiveObjectProperties() {
+        const activeObject = canvas.getActiveObject();
+        if (!activeObject || activeObject.type !== 'text') return;
+        
+        const orientation = textOrientationControl.value;
+        const textValue = textInput.value || "請輸入文字";
+        
+        const newFontSize = parseInt(fontSizeControl.value, 10);
+        const newFontFamily = fontFamilyControl.value;
+        const newFillColor = fontColorControl.value;
+        const newFontWeight = fontWeightControl.value;
+        const newCharSpacing = parseInt(charSpacingControl.value, 10);
+        const newOpacity = parseFloat(opacityControl.value / 100);
+        const textAngle = orientation === 'vertical' ? 90 : 0; 
+
+        activeObject.set({
+            text: textValue,
+            fontSize: newFontSize,
+            fontFamily: newFontFamily,
+            fill: newFillColor,
+            fontWeight: newFontWeight,
+            charSpacing: newCharSpacing,
+            opacity: newOpacity,
+            angle: textAngle,
+            shadow: '4px 4px 5px rgba(0,0,0,0.5)',
+            stroke: '#000000',
+            strokeWidth: 2,
+        });
+
+        activeObject.setCoords(); 
+        canvas.requestRenderAll();
     }
     
     function addNewTextObject() {
@@ -171,9 +208,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // 關鍵修復：載入和初始化完成，移除父容器上的載入標記
                 loadingIndicator.style.display = 'none'; 
-                canvasWrapper.classList.remove('loading-state'); // <-- 移除遮罩
-                placeholder.textContent = ''; // <-- 清空提示文字
-                placeholder.style.display = 'none'; // <-- 確保元素隱藏
+                canvasWrapper.classList.remove('loading-state'); // <-- 移除 class，CSS 負責隱藏浮水印
+                placeholder.textContent = ''; 
+                placeholder.style.display = 'none'; // 額外保險
 
             }, { 
                 scaleX: 1, 
@@ -185,7 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
             onError: function(err) {
                 // 載入失敗處理
                 loadingIndicator.style.display = 'none'; 
-                canvasWrapper.classList.remove('loading-state'); // 失敗也要移除遮罩
+                canvasWrapper.classList.remove('loading-state'); // 失敗也要移除 class
                 placeholder.textContent = "👆 載入失敗！請確認圖片格式 (PNG/JPG) 及檔案大小 (建議小於 5MB)。";
             }
         }); 
@@ -213,7 +250,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // 載入完成，隱藏提示
             loadingIndicator.style.display = 'none'; 
-            canvasWrapper.classList.remove('loading-state'); // <-- 移除遮罩
+            canvasWrapper.classList.remove('loading-state'); // <-- 移除 class
             placeholder.textContent = ''; 
             placeholder.style.display = 'none';
             
@@ -230,8 +267,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-
-    // --- 事件監聽器與初始化 (其餘保持不變) ---
+    // --- 事件監聽器與初始化 ---
 
     // 1. [Web Font] 
     document.fonts.ready.then(() => {
@@ -247,9 +283,9 @@ document.addEventListener('DOMContentLoaded', () => {
     imageLoader.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        
+
         if (file.size > 5 * 1024 * 1024) {
-             alert("警告：圖片檔案超過 5MB，手機上可能載入失敗。請嘗試較小的圖片。");
+            alert("警告：圖片檔案超過 5MB，手機上可能載入失敗。請嘗試較小的圖片。");
         }
 
         const reader = new FileReader();
