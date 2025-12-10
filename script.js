@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // 獲取所有 DOM 元素
+    // 獲取所有 DOM 元素 (保持不變)
     const imageLoader = document.getElementById('imageLoader');
     const textInput = document.getElementById('textInput');
     const fontFamilyControl = document.getElementById('fontFamily');
@@ -17,6 +17,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentTextObject = null;
     let originalImage = null;
 
+    // [新增] 檢查字體載入狀態的旗標
+    let fontsLoaded = false;
+    
     // --- 輔助函數 ---
 
     function initializeCanvas() {
@@ -24,17 +27,19 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (canvas) {
             canvas.clear();
-            // 關鍵：釋放記憶體
             canvas.dispose(); 
         }
         
-        // 創建新的 Fabric.js 實例
         canvas = new fabric.Canvas(canvasElement, {
             enablePointerEvents: true 
         });
         
-        // 確保初始狀態正確
         placeholder.style.display = 'block'; 
+        // 初始佔位符提示字體狀態
+        placeholder.innerHTML = fontsLoaded 
+            ? '👆 請先選擇一張圖片，然後點擊文字進行拖曳'
+            : '正在載入字體，請稍候...';
+            
         loadingIndicator.style.display = 'none'; 
         currentTextObject = null;
         originalImage = null;
@@ -42,7 +47,10 @@ document.addEventListener('DOMContentLoaded', () => {
         deleteTextBtn.disabled = true; 
     }
 
-    // [核心優化] 統一文字物件創建邏輯，並使用旋轉實現直式
+    // ... updateTextProperties 函數 (保持不變) ...
+    // 由於此函數與效能優化版 script.js 內容一致，這裡省略以避免重複。
+    // 請確保使用上一個步驟中提供的效能優化版 script.js 中的 updateTextProperties 內容。
+    
     function updateTextProperties() {
         if (!canvas) return;
         
@@ -56,16 +64,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const strokeColor = '#000000';
         const strokeWidth = 2;
         
-        // 判斷是否需要旋轉
         const textAngle = orientation === 'vertical' ? 90 : 0; 
 
-        // 1. 如果文字物件已經存在，先從 Canvas 上移除
         if (currentTextObject) {
             canvas.remove(currentTextObject);
             currentTextObject = null;
         }
 
-        // 2. 創建單個高性能的 fabric.Text 物件
+        // 創建單個高性能的 fabric.Text 物件
         currentTextObject = new fabric.Text(textValue, {
             fontSize: newFontSize,
             fontFamily: newFontFamily,
@@ -83,11 +89,9 @@ document.addEventListener('DOMContentLoaded', () => {
             hasControls: true, 
             lockScalingFlip: true,
             
-            // 應用角度：這是效能最佳的直式實現方式
             angle: textAngle
         });
         
-        // 3. 確保物件被加入和控制項更新
         if (currentTextObject) {
             canvas.add(currentTextObject);
             canvas.setActiveObject(currentTextObject);
@@ -101,10 +105,13 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 核心函數：載入圖片到 Canvas
     function loadImageToCanvas(imgSource) {
+        // ... (保持不變) ...
         initializeCanvas(); 
 
         placeholder.style.display = 'block'; 
         loadingIndicator.style.display = 'block'; 
+        placeholder.innerHTML = '<span id="loadingIndicator">正在載入圖片並初始化... (需數秒)</span>';
+
 
         fabric.Image.fromURL(imgSource, function(img) {
             // == 載入成功時執行 ==
@@ -122,7 +129,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 scaleY: 1
             });
             
-            // 初始化文字物件
             updateTextProperties(); 
             
             downloadBtn.disabled = false;
@@ -140,7 +146,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 事件監聽器與初始化 ---
 
-    // 1. 處理使用者上傳圖片
+    // 1. [關鍵] 等待字體載入完成，再進行初始化
+    document.fonts.ready.then(() => {
+        fontsLoaded = true;
+        console.log("Web Fonts 載入完成！");
+        // 初始化 Canvas
+        initializeCanvas(); 
+    }).catch(err => {
+        // 如果字體載入失敗，仍然進行初始化
+        console.error("Web Fonts 載入失敗，使用系統字體。", err);
+        initializeCanvas();
+    });
+
+    // 2. 處理使用者上傳圖片
     imageLoader.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -151,7 +169,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const reader = new FileReader();
         reader.onload = (event) => {
-            loadImageToCanvas(event.target.result); 
+            // 確保字體載入後才開始載入圖片
+            if (fontsLoaded) {
+                loadImageToCanvas(event.target.result); 
+            } else {
+                alert("字體資源尚未載入完成，請稍後再試。");
+            }
         };
         reader.onerror = () => {
             alert("檔案讀取失敗，請確認檔案類型或大小。");
@@ -159,9 +182,6 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.readAsDataURL(file);
     });
 
-    // 2. 網頁載入後立即執行初始化
-    initializeCanvas(); 
-    
     // 3. 綁定控制項事件
     [textInput, fontFamilyControl, fontSizeControl, fontWeightControl, fontColorControl, textOrientationControl].forEach(control => {
         control.addEventListener('input', updateTextProperties);
@@ -204,7 +224,6 @@ document.addEventListener('DOMContentLoaded', () => {
         link.click();
         document.body.removeChild(link);
         
-        // 重新選中物件，方便繼續編輯
         if (currentTextObject) {
             canvas.setActiveObject(currentTextObject);
             canvas.renderAll();
