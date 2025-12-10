@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (canvas) {
             canvas.clear();
-            // 關鍵：釋放記憶體，避免手機崩潰
+            // 關鍵：釋放記憶體
             canvas.dispose(); 
         }
         
@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
         deleteTextBtn.disabled = true; 
     }
 
-    // [核心修改] 處理文字屬性更新和直式排版邏輯
+    // [核心優化] 統一文字物件創建邏輯，並使用旋轉實現直式
     function updateTextProperties() {
         if (!canvas) return;
         
@@ -55,88 +55,39 @@ document.addEventListener('DOMContentLoaded', () => {
         const shadowStyle = '4px 4px 5px rgba(0,0,0,0.5)';
         const strokeColor = '#000000';
         const strokeWidth = 2;
+        
+        // 判斷是否需要旋轉
+        const textAngle = orientation === 'vertical' ? 90 : 0; 
 
-        // 如果文字物件已經存在，先從 Canvas 上移除
+        // 1. 如果文字物件已經存在，先從 Canvas 上移除
         if (currentTextObject) {
             canvas.remove(currentTextObject);
             currentTextObject = null;
         }
 
-        if (orientation === 'vertical') {
-            // == [真正的直式排版]：創建單字物件群組 ==
+        // 2. 創建單個高性能的 fabric.Text 物件
+        currentTextObject = new fabric.Text(textValue, {
+            fontSize: newFontSize,
+            fontFamily: newFontFamily,
+            fill: newFillColor,
+            fontWeight: newFontWeight,
+            shadow: shadowStyle,
+            stroke: strokeColor,
+            strokeWidth: strokeWidth,
             
-            const lines = textValue.split('\n');
-            const characterObjects = [];
+            left: canvas.width / 2,
+            top: canvas.height / 2,
+            textAlign: 'center',
+            originX: 'center', 
+            originY: 'center',
+            hasControls: true, 
+            lockScalingFlip: true,
             
-            // 計算 Y 軸偏移
-            let currentX = 0; 
-            
-            // 處理多行文字 (直式排版中，每行是一個垂直堆疊的字組)
-            lines.forEach((line) => {
-                if (!line) return;
-                
-                let lineGroupHeight = 0;
-                
-                // 將每個字元轉換為一個獨立的 Fabric.Text 物件
-                for (let i = 0; i < line.length; i++) {
-                    const char = line[i];
-                    const charObject = new fabric.Text(char, {
-                        fontSize: newFontSize,
-                        fontFamily: newFontFamily,
-                        fill: newFillColor,
-                        fontWeight: newFontWeight,
-                        shadow: shadowStyle,
-                        stroke: strokeColor,
-                        strokeWidth: strokeWidth,
-                        
-                        // 定位：確保在 Group 內部正確堆疊
-                        left: currentX, 
-                        top: lineGroupHeight,
-                        originX: 'center',
-                        originY: 'top',
-                    });
-                    
-                    characterObjects.push(charObject);
-                    lineGroupHeight += newFontSize * 1.2; // 調整行距 (1.2倍字體大小)
-                }
-                
-                // 每個垂直字組之間保持間距
-                currentX += newFontSize * 1.5; 
-            });
-            
-            // 將所有單字物件組合成一個群組
-            currentTextObject = new fabric.Group(characterObjects, {
-                // 將群組置於 Canvas 中央
-                left: canvas.width / 2,
-                top: canvas.height / 2,
-                originX: 'center',
-                originY: 'center',
-                hasControls: true, 
-                lockScalingFlip: true 
-            });
-
-        } else {
-            // == [橫式排版]：使用單個文字物件 (與之前邏輯一致) ==
-            currentTextObject = new fabric.Text(textValue, {
-                fontSize: newFontSize,
-                fontFamily: newFontFamily,
-                fill: newFillColor,
-                fontWeight: newFontWeight,
-                shadow: shadowStyle,
-                stroke: strokeColor,
-                strokeWidth: strokeWidth,
-                
-                left: canvas.width / 2,
-                top: canvas.height / 2,
-                textAlign: 'center',
-                originX: 'center', 
-                originY: 'center',
-                hasControls: true, 
-                lockScalingFlip: true 
-            });
-        }
+            // 應用角度：這是效能最佳的直式實現方式
+            angle: textAngle
+        });
         
-        // 確保有物件時才加入和啟用按鈕
+        // 3. 確保物件被加入和控制項更新
         if (currentTextObject) {
             canvas.add(currentTextObject);
             canvas.setActiveObject(currentTextObject);
@@ -171,7 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 scaleY: 1
             });
             
-            // 初始化文字物件（重要：這裡不再創建文字，而是直接呼叫 updateTextProperties）
+            // 初始化文字物件
             updateTextProperties(); 
             
             downloadBtn.disabled = false;
@@ -211,7 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. 網頁載入後立即執行初始化
     initializeCanvas(); 
     
-    // 3. 綁定控制項事件 (所有控制項現在都觸發更複雜的 updateTextProperties)
+    // 3. 綁定控制項事件
     [textInput, fontFamilyControl, fontSizeControl, fontWeightControl, fontColorControl, textOrientationControl].forEach(control => {
         control.addEventListener('input', updateTextProperties);
         control.addEventListener('change', updateTextProperties);
