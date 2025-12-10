@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // 獲取所有 DOM 元素 (與之前一致)
+    // 獲取所有 DOM 元素
     const imageLoader = document.getElementById('imageLoader');
     const textInput = document.getElementById('textInput');
     const fontFamilyControl = document.getElementById('fontFamily');
@@ -24,13 +24,16 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (canvas) {
             canvas.clear();
+            // 關鍵：釋放記憶體，避免手機崩潰
             canvas.dispose(); 
         }
         
+        // 創建新的 Fabric.js 實例
         canvas = new fabric.Canvas(canvasElement, {
             enablePointerEvents: true 
         });
         
+        // 確保初始狀態正確
         placeholder.style.display = 'block'; 
         loadingIndicator.style.display = 'none'; 
         currentTextObject = null;
@@ -65,14 +68,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const lines = textValue.split('\n');
             const characterObjects = [];
             
-            // 計算 Y 軸偏移，確保文字頂部對齊 (Top alignment)
-            let currentY = 0; 
+            // 計算 Y 軸偏移
+            let currentX = 0; 
             
-            // 處理多行文字 (直式排版中，我們將每一行視為一個垂直堆疊的字組)
-            lines.forEach((line, lineIndex) => {
+            // 處理多行文字 (直式排版中，每行是一個垂直堆疊的字組)
+            lines.forEach((line) => {
                 if (!line) return;
                 
-                // 每個字組開始時，從 Y 軸的頂部重新開始堆疊
                 let lineGroupHeight = 0;
                 
                 // 將每個字元轉換為一個獨立的 Fabric.Text 物件
@@ -88,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         strokeWidth: strokeWidth,
                         
                         // 定位：確保在 Group 內部正確堆疊
-                        left: 0, 
+                        left: currentX, 
                         top: lineGroupHeight,
                         originX: 'center',
                         originY: 'top',
@@ -98,8 +100,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     lineGroupHeight += newFontSize * 1.2; // 調整行距 (1.2倍字體大小)
                 }
                 
-                // 處理換行（此處只是將文字物件一個接一個堆疊）
-                currentY = Math.max(currentY, lineGroupHeight); 
+                // 每個垂直字組之間保持間距
+                currentX += newFontSize * 1.5; 
             });
             
             // 將所有單字物件組合成一個群組
