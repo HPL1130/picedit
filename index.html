@@ -12,7 +12,7 @@
 <body>
     <div class="container">
         <h1>🎨 圖像創意文字產生器</h1>
-        <p class="privacy-note">⚠️ **隱私聲明：** 您的圖片和編輯過程完全在您的瀏覽器中處理，不會上傳到任何伺服器。請用**單指點擊**文字物件即可拖曳，物件出現邊框後可進行縮放和旋轉。</p>
+        <p class="privacy-note">⚠️ **隱私聲明：** 您的圖片和編輯過程完全在您的瀏覽器中處理，不會上傳到任何伺服器。請用**單指點擊**文字物件即可拖曳、縮放、旋轉。</p>
 
         <div class="control-group">
             <label for="imageLoader">選擇底圖：</label>
@@ -22,6 +22,10 @@
         <div class="control-group">
             <label for="textInput">輸入文字：</label>
             <textarea id="textInput" placeholder="在此輸入您想新增的創意文字..." rows="3">點擊我並輸入文字</textarea>
+            
+            <button id="deleteTextBtn" disabled style="width: 100%; padding: 8px; margin-top: 5px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                移除目前的文字物件
+            </button>
             
             <div class="controls-row">
                 <div class="control-item">
@@ -48,36 +52,4 @@
                 </div>
                  <div class="control-item">
                     <label for="fontWeight">粗體：</label>
-                    <select id="fontWeight">
-                        <option value="normal">正常</option>
-                        <option value="bold">粗體</option>
-                    </select>
-                </div>
-                <div class="control-item">
-                    <label for="textOrientation">排版：</label>
-                    <select id="textOrientation">
-                        <option value="horizontal">橫式</option>
-                        <option value="vertical">直式 (旋轉實現)</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-
-        <div class="canvas-wrapper">
-            <canvas id="imageCanvas"></canvas> 
-            <p id="canvasPlaceholder">👆 請先選擇一張圖片，然後點擊文字進行拖曳</p>
-        </div>
-
-        <div class="control-group download-area">
-            <label for="downloadFormat">存檔格式：</label>
-            <select id="downloadFormat">
-                <option value="image/png">PNG (推薦，無失真)</option>
-                <option value="image/jpeg">JPEG (檔案小)</option>
-            </option>
-            <button id="downloadBtn" disabled>下載製作好的圖片</button>
-        </div>
-    </div>
-    
-    <script src="script.js"></script>
-</body>
-</html>
+                    <select id="
