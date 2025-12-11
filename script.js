@@ -75,10 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (isText) {
              syncControlsFromObject(activeObject);
-        } else {
-             // 這裡不再重設 textInput.value，保持它顯示用戶最後輸入的內容或預設值
-             // 只有 disabled 狀態會改變
-        }
+        } 
     }
 
     // 將 Canvas 物件的屬性同步到控制項 (Canvas → 控制項)
@@ -363,9 +360,7 @@ document.addEventListener('DOMContentLoaded', () => {
         textInput, fontFamilyControl, fontSizeControl, fontWeightControl, fontColorControl, 
         textOrientationControl, charSpacingControl, opacityControl 
     ].forEach(control => {
-        // 'input' 事件會在用戶輸入時立即觸發
         control.addEventListener('input', updateActiveObjectProperties);
-        // 'change' 事件在失去焦點時觸發
         control.addEventListener('change', updateActiveObjectProperties);
     });
 
@@ -402,7 +397,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 6. 持久化與下載事件
+    // 6. 持久化與下載事件 (最終修正下載邏輯，避免瀏覽器阻止)
     saveStateBtn.addEventListener('click', saveCanvasState);
     loadStateBtn.addEventListener('click', loadCanvasState);
 
@@ -417,18 +412,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const format = downloadFormatControl.value; 
         let fileExtension = format.split('/')[1];
+        const mimeType = format === 'image/jpeg' ? 'image/jpeg' : 'image/png'; 
 
-        // toDataURL 會使用 Canvas 的內部高解析度尺寸輸出 (不是縮放後的畫面尺寸)
-        const dataURL = canvas.toDataURL({
-            format: fileExtension,
-            quality: fileExtension === 'jpeg' ? 0.9 : 1.0
-        }); 
+        try {
+            // toDataURL 會使用 Canvas 的內部高解析度尺寸輸出 (不是縮放後的畫面尺寸)
+            const dataURL = canvas.toDataURL({
+                format: fileExtension,
+                quality: fileExtension === 'jpeg' ? 0.9 : 1.0,
+                mimeType: mimeType
+            }); 
 
-        const link = document.createElement('a');
-        link.download = `圖像創意文字-${Date.now()}.${fileExtension}`; 
-        link.href = dataURL;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+            const link = document.createElement('a');
+            link.download = `圖像創意文字-${Date.now()}.${fileExtension}`; 
+            link.href = dataURL;
+            
+            // 嘗試點擊下載連結
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // 備用檢查：如果下載失敗，在新的視窗打開圖片
+            setTimeout(() => {
+                if (link.href.length < 50) { 
+                    console.error("下載連結生成異常或被瀏覽器阻止，嘗試新視窗打開。");
+                    window.open(dataURL, '_blank');
+                    alert("下載未自動開始。圖片已在新視窗中打開，請手動右鍵儲存。");
+                }
+            }, 100); 
+
+        } catch (error) {
+            alert("下載失敗：無法將 Canvas 轉換為圖片數據。請確保您使用的是本地上傳的圖片。");
+            console.error("下載錯誤:", error);
+        }
     });
 });
