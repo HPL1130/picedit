@@ -47,6 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let indicatorHTML = '';
         if (showLoadingIndicator) {
+            // 使用內聯樣式定義藍色載入指示器
             indicatorHTML = '<span style="color: #007bff; margin-top: 10px; font-weight: bold;">正在載入...</span>';
         }
         placeholder.innerHTML = message + indicatorHTML;
@@ -60,7 +61,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function toggleControls(activeObject) {
-        // ... (保持不變)
         const isText = activeObject && activeObject.type === 'text';
         
         [textInput, fontFamilyControl, fontSizeControl, fontWeightControl, 
@@ -80,7 +80,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function syncControlsFromObject(obj) {
-        // ... (保持不變)
         textInput.value = obj.text;
         fontFamilyControl.value = obj.fontFamily;
         fontSizeControl.value = obj.fontSize;
@@ -90,6 +89,40 @@ document.addEventListener('DOMContentLoaded', () => {
         charSpacingControl.value = obj.charSpacing || 0;
         opacityControl.value = obj.opacity * 100 || 100;
     }
+
+    function updateActiveObjectProperties() {
+        const activeObject = canvas.getActiveObject();
+        if (!activeObject || activeObject.type !== 'text') return;
+        
+        const orientation = textOrientationControl.value;
+        const textValue = textInput.value || "請輸入文字";
+        
+        const newFontSize = parseInt(fontSizeControl.value, 10);
+        const newFontFamily = fontFamilyControl.value;
+        const newFillColor = fontColorControl.value;
+        const newFontWeight = fontWeightControl.value;
+        const newCharSpacing = parseInt(charSpacingControl.value, 10);
+        const newOpacity = parseFloat(opacityControl.value / 100);
+        const textAngle = orientation === 'vertical' ? 90 : 0; 
+
+        activeObject.set({
+            text: textValue,
+            fontSize: newFontSize,
+            fontFamily: newFontFamily,
+            fill: newFillColor,
+            fontWeight: newFontWeight,
+            charSpacing: newCharSpacing,
+            opacity: newOpacity,
+            angle: textAngle,
+            shadow: '4px 4px 5px rgba(0,0,0,0.5)',
+            stroke: '#000000',
+            strokeWidth: 2,
+        });
+
+        activeObject.setCoords(); 
+        canvas.requestRenderAll();
+    }
+
 
     function checkLocalStorage() {
         if (localStorage.getItem(STORAGE_KEY)) {
@@ -138,7 +171,6 @@ document.addEventListener('DOMContentLoaded', () => {
             ? '👆 請先選擇一張圖片，然後點擊文字進行拖曳'
             : '正在載入字體，請稍候...';
             
-        // 初始時僅顯示就緒提示，不使用載入動畫
         showPlaceholder(initialMessage, false); 
         
         // 如果字體已載入，且 Canvas 尚未有內容，則顯示就緒提示 (不帶載入動畫)
@@ -184,7 +216,7 @@ document.addEventListener('DOMContentLoaded', () => {
         canvas.fire('selection:created', { target: newText }); 
     }
     
-    // [核心修復點] loadImageToCanvas
+    // [核心修復點] loadImageToCanvas: 新增縮放計算
     function loadImageToCanvas(imgSource) {
         initializeCanvas(); 
         
@@ -195,16 +227,34 @@ document.addEventListener('DOMContentLoaded', () => {
             
             originalImage = img;
             
-            // 將 Canvas 調整為圖片大小
+            // -----------------------------------------------------
+            // 💡 手機自適應計算邏輯 (核心修正)
+            // -----------------------------------------------------
+            const containerWidth = canvasWrapper.clientWidth;
+            let scale = 1;
+
+            // 只有當圖片寬度大於容器寬度時，才進行縮放
+            if (img.width > containerWidth) {
+                scale = containerWidth / img.width;
+            }
+            
+            const scaledWidth = img.width * scale;
+            const scaledHeight = img.height * scale;
+            
+            // 1. 設定 Canvas 的實際尺寸（Canvas 內部尺寸，保持原圖像素以供下載）
             canvas.setDimensions({ 
                 width: img.width, 
                 height: img.height 
             });
 
-            // 將 Canvas 容器調整為圖片大小，確保覆蓋整個佔位符區域
-            canvasWrapper.style.width = `${img.width}px`;
-            canvasWrapper.style.height = `${img.height}px`;
+            // 2. 設定 Canvas 容器的顯示尺寸（DOM 尺寸，使用縮放後的尺寸適應螢幕）
+            canvasWrapper.style.width = `${scaledWidth}px`;
+            canvasWrapper.style.height = `${scaledHeight}px`;
 
+            // 3. 縮放 Canvas 內容 (縮放所有繪圖內容，使其適應容器大小)
+            canvas.setZoom(scale);
+            // -----------------------------------------------------
+            
             canvas.setBackgroundImage(img, function() {
                 canvas.renderAll(); 
                 
@@ -217,6 +267,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 downloadBtn.disabled = false;
 
             }, { 
+                // 背景圖不需要額外縮放，因為我們已經縮放了整個 Canvas 
                 scaleX: 1, 
                 scaleY: 1
             });
@@ -264,6 +315,22 @@ document.addEventListener('DOMContentLoaded', () => {
             
             alert('暫存狀態已成功載入！');
         });
+    }
+
+    // 7. 持久化狀態保存
+    function saveCanvasState() {
+        if (!canvas) {
+            alert('請先載入圖片開始編輯！');
+            return;
+        }
+        // 清除選區，確保 JSON 乾淨
+        canvas.discardActiveObject(); 
+        canvas.renderAll();
+        
+        const json = canvas.toJSON(['scaleX', 'scaleY', 'angle', 'opacity', 'charSpacing', 'stroke', 'strokeWidth', 'fontWeight']);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(json));
+        checkLocalStorage();
+        alert('編輯狀態已暫存到您的瀏覽器中！');
     }
 
     // --- 事件監聽器與初始化 (保持不變) ---
@@ -340,7 +407,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 6. 持久化與下載事件 (略)
+    // 6. 持久化與下載事件
     saveStateBtn.addEventListener('click', saveCanvasState);
     loadStateBtn.addEventListener('click', loadCanvasState);
 
@@ -353,6 +420,9 @@ document.addEventListener('DOMContentLoaded', () => {
         canvas.discardActiveObject(); 
         canvas.renderAll();
 
+        // 由於 Canvas 內容在畫面上是縮小的 (canvas.setZoom)，
+        // toDataURL 會使用原始尺寸 (img.width/height) 輸出，確保下載是高解析度。
+        
         const format = downloadFormatControl.value; 
         let fileExtension = format.split('/')[1];
 
