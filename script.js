@@ -30,20 +30,21 @@ document.addEventListener('DOMContentLoaded', () => {
     let originalImage = null;
     let fontsLoaded = false;
     
+    // 定義一個初始的 Canvas 尺寸，確保未載圖時也能看到文字
+    const DEFAULT_CANVAS_WIDTH = 600;
+    const DEFAULT_CANVAS_HEIGHT = 400;
+
     // --- 輔助函數 ---
 
-    // [新輔助函數] 處理佔位符顯示
+    // 處理佔位符顯示
     function showPlaceholder(message, showLoadingIndicator = false) {
-        // 確保佔位符在 DOM 中
         if (!placeholder.parentNode) {
             canvasWrapper.appendChild(placeholder);
         }
         
-        // 使用 CSS Class 控制顯示層級和樣式
         canvasWrapper.classList.add('loading-state');
-        placeholder.style.display = 'flex'; // 確保顯示
+        placeholder.style.display = 'flex'; 
 
-        // 更新提示內容，並控制藍色載入指示器
         let indicatorHTML = '';
         if (showLoadingIndicator) {
             indicatorHTML = '<span style="color: #007bff; margin-top: 10px; font-weight: bold;">正在載入...</span>';
@@ -51,12 +52,11 @@ document.addEventListener('DOMContentLoaded', () => {
         placeholder.innerHTML = message + indicatorHTML;
     }
 
-    // [新輔助函數] 處理佔位符隱藏
+    // 處理佔位符隱藏
     function hidePlaceholder() {
-        // 關鍵步驟：載入成功後，移除 CSS 類別並強制隱藏元素
         canvasWrapper.classList.remove('loading-state');
         placeholder.style.display = 'none'; // 強制隱藏
-        placeholder.innerHTML = ''; // 清空內容
+        placeholder.innerHTML = ''; 
     }
 
     function toggleControls(activeObject) {
@@ -101,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 核心與初始化函數 ---
     
-    // [修復點 1] initializeCanvas: 重置 Canvas 狀態
+    // [修復點 1] initializeCanvas: 修正初始尺寸
     function initializeCanvas() {
         const canvasElement = document.getElementById('imageCanvas');
         
@@ -112,7 +112,10 @@ document.addEventListener('DOMContentLoaded', () => {
         
         canvas = new fabric.Canvas(canvasElement, {
             enablePointerEvents: true,
-            selection: true
+            selection: true,
+            // 預設為固定尺寸，確保在圖片載入前有可見區域
+            width: DEFAULT_CANVAS_WIDTH,
+            height: DEFAULT_CANVAS_HEIGHT 
         });
         
         canvas.on({
@@ -126,64 +129,92 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         
+        // 確保 Canvas 容器具有預設尺寸
+        canvasWrapper.style.width = `${DEFAULT_CANVAS_WIDTH}px`;
+        canvasWrapper.style.height = `${DEFAULT_CANVAS_HEIGHT}px`;
+
         // 初始狀態：顯示就緒提示
         const initialMessage = fontsLoaded 
             ? '👆 請先選擇一張圖片，然後點擊文字進行拖曳'
             : '正在載入字體，請稍候...';
             
-        showPlaceholder(initialMessage, !fontsLoaded); // 字體未載入時顯示藍色載入指示器
+        // 初始時僅顯示就緒提示，不使用載入動畫
+        showPlaceholder(initialMessage, false); 
+        
+        // 如果字體已載入，且 Canvas 尚未有內容，則顯示就緒提示 (不帶載入動畫)
+        if (fontsLoaded) {
+            showPlaceholder('👆 請先選擇一張圖片，然後點擊文字進行拖曳', false); 
+        }
             
         originalImage = null;
         downloadBtn.disabled = true;
         
         toggleControls(null);
-        
-        // 如果字體已載入，且 Canvas 尚未有內容，則隱藏載入指示器
-        if (fontsLoaded && !originalImage) {
-             hidePlaceholder();
-             // 重新顯示就緒提示 (不帶載入動畫)
-             showPlaceholder('👆 請先選擇一張圖片，然後點擊文字進行拖曳', false); 
-        }
     }
     
     function addNewTextObject() {
-        // ... (保持不變)
         if (!canvas || !originalImage) {
             alert('請先載入圖片！');
             return;
         }
-        // ... (略)
+        
+        const newText = new fabric.Text("新增的文字", {
+            fontSize: 48,
+            fontFamily: fontFamilyControl.value,
+            fill: fontColorControl.value,
+            shadow: '4px 4px 5px rgba(0,0,0,0.5)',
+            stroke: '#000000',
+            strokeWidth: 2,
+            
+            // 將位置設定在 Canvas 中央
+            left: canvas.width / 2, 
+            top: canvas.height / 2,
+            textAlign: 'center',
+            originX: 'center', 
+            originY: 'center',
+            hasControls: true, 
+            lockScalingFlip: true,
+            angle: 0
+        });
+        
+        canvas.add(newText);
+        canvas.setActiveObject(newText);
+        canvas.renderAll();
+        
+        canvas.fire('selection:created', { target: newText }); 
     }
     
     // [核心修復點] loadImageToCanvas
     function loadImageToCanvas(imgSource) {
         initializeCanvas(); 
         
-        // 顯示載入狀態
+        // 載入時，顯示載入動畫
         showPlaceholder('正在載入圖片並初始化...', true);
 
         fabric.Image.fromURL(imgSource, function(img) {
             
             originalImage = img;
             
+            // 將 Canvas 調整為圖片大小
             canvas.setDimensions({ 
                 width: img.width, 
                 height: img.height 
             });
 
-            // 關鍵：將 Canvas 容器調整為圖片大小，確保覆蓋整個佔位符區域
+            // 將 Canvas 容器調整為圖片大小，確保覆蓋整個佔位符區域
             canvasWrapper.style.width = `${img.width}px`;
             canvasWrapper.style.height = `${img.height}px`;
 
             canvas.setBackgroundImage(img, function() {
                 canvas.renderAll(); 
                 
+                // 載入完成，隱藏提示
+                hidePlaceholder(); 
+                
+                // 載入圖片後，自動新增第一個文字物件
                 addNewTextObject(); 
             
                 downloadBtn.disabled = false;
-                
-                // 關鍵修復：載入和初始化完成，強制隱藏提示！
-                hidePlaceholder();
 
             }, { 
                 scaleX: 1, 
@@ -268,14 +299,73 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // 3. 綁定控制項事件 (略)
-    // ... (其餘函數保持不變)
-    
+    [
+        textInput, fontFamilyControl, fontSizeControl, fontWeightControl, fontColorControl, 
+        textOrientationControl, charSpacingControl, opacityControl 
+    ].forEach(control => {
+        control.addEventListener('input', updateActiveObjectProperties);
+        control.addEventListener('change', updateActiveObjectProperties);
+    });
+
     // 4. 圖層控制事件 (略)
-    // ...
+    addTextBtn.addEventListener('click', addNewTextObject);
     
+    bringToFrontBtn.addEventListener('click', () => {
+        const activeObject = canvas.getActiveObject();
+        if (activeObject) {
+            canvas.bringToFront(activeObject);
+            canvas.renderAll();
+        }
+    });
+
+    sendToBackBtn.addEventListener('click', () => {
+        const activeObject = canvas.getActiveObject();
+        if (activeObject) {
+            const backgroundObject = canvas.getObjects()[0];
+            if (activeObject !== backgroundObject) {
+                 canvas.sendBackwards(activeObject, true);
+                 canvas.renderAll();
+            }
+        }
+    });
+
     // 5. 刪除按鈕事件處理 (略)
-    // ...
+    deleteTextBtn.addEventListener('click', () => {
+        const activeObject = canvas.getActiveObject();
+        if (activeObject && confirm("確定要移除選中的物件嗎？")) {
+            canvas.remove(activeObject);
+            canvas.renderAll();
+            canvas.discardActiveObject();
+            toggleControls(null);
+        }
+    });
 
     // 6. 持久化與下載事件 (略)
-    // ...
+    saveStateBtn.addEventListener('click', saveCanvasState);
+    loadStateBtn.addEventListener('click', loadCanvasState);
+
+    downloadBtn.addEventListener('click', () => {
+        if (!originalImage) {
+            alert("請先上傳圖片！");
+            return;
+        }
+        
+        canvas.discardActiveObject(); 
+        canvas.renderAll();
+
+        const format = downloadFormatControl.value; 
+        let fileExtension = format.split('/')[1];
+
+        const dataURL = canvas.toDataURL({
+            format: fileExtension,
+            quality: fileExtension === 'jpeg' ? 0.9 : 1.0
+        }); 
+
+        const link = document.createElement('a');
+        link.download = `圖像創意文字-${Date.now()}.${fileExtension}`; 
+        link.href = dataURL;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    });
 });
