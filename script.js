@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 輔助函數 ---
 
-    // 處理佔位符顯示
+    // 處理佔位符顯示 (解決浮水印顯示/藍字載入)
     function showPlaceholder(message, showLoadingIndicator = false) {
         if (!placeholder.parentNode) {
             canvasWrapper.appendChild(placeholder);
@@ -53,13 +53,14 @@ document.addEventListener('DOMContentLoaded', () => {
         placeholder.innerHTML = message + indicatorHTML;
     }
 
-    // 處理佔位符隱藏
+    // 處理佔位符隱藏 (解決浮水印殘留)
     function hidePlaceholder() {
         canvasWrapper.classList.remove('loading-state');
         placeholder.style.display = 'none'; // 強制隱藏
         placeholder.innerHTML = ''; 
     }
-
+    
+    // 修正：移除對 textInput.value 的重設，只控制 disabled 狀態 (解決文字被覆蓋)
     function toggleControls(activeObject) {
         const isText = activeObject && activeObject.type === 'text';
         
@@ -75,10 +76,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isText) {
              syncControlsFromObject(activeObject);
         } else {
-            textInput.value = '請選中 Canvas 上的物件進行編輯'; 
+             // 這裡不再重設 textInput.value，保持它顯示用戶最後輸入的內容或預設值
+             // 只有 disabled 狀態會改變
         }
     }
 
+    // 將 Canvas 物件的屬性同步到控制項 (Canvas → 控制項)
     function syncControlsFromObject(obj) {
         textInput.value = obj.text;
         fontFamilyControl.value = obj.fontFamily;
@@ -89,13 +92,17 @@ document.addEventListener('DOMContentLoaded', () => {
         charSpacingControl.value = obj.charSpacing || 0;
         opacityControl.value = obj.opacity * 100 || 100;
     }
-
+    
+    // 將控制項的值同步到 Canvas 物件 (控制項 → Canvas，解決文字不同步)
     function updateActiveObjectProperties() {
         const activeObject = canvas.getActiveObject();
+        // 確保有選中物件且是文字物件
         if (!activeObject || activeObject.type !== 'text') return;
         
         const orientation = textOrientationControl.value;
-        const textValue = textInput.value || "請輸入文字";
+        
+        // 確保獲取輸入框當前的最新內容
+        const textValue = textInput.value || "請輸入文字"; 
         
         const newFontSize = parseInt(fontSizeControl.value, 10);
         const newFontFamily = fontFamilyControl.value;
@@ -106,7 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const textAngle = orientation === 'vertical' ? 90 : 0; 
 
         activeObject.set({
-            text: textValue,
+            text: textValue, // 確保使用輸入框的最新值
             fontSize: newFontSize,
             fontFamily: newFontFamily,
             fill: newFillColor,
@@ -120,7 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         activeObject.setCoords(); 
-        canvas.requestRenderAll();
+        canvas.requestRenderAll(); // 渲染到畫面上
     }
 
 
@@ -134,7 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 核心與初始化函數 ---
     
-    // [修復點 1] initializeCanvas: 修正初始尺寸
+    // 修正：確保 Canvas 具有預設尺寸 (解決文字物件不可見)
     function initializeCanvas() {
         const canvasElement = document.getElementById('imageCanvas');
         
@@ -146,7 +153,6 @@ document.addEventListener('DOMContentLoaded', () => {
         canvas = new fabric.Canvas(canvasElement, {
             enablePointerEvents: true,
             selection: true,
-            // 預設為固定尺寸，確保在圖片載入前有可見區域
             width: DEFAULT_CANVAS_WIDTH,
             height: DEFAULT_CANVAS_HEIGHT 
         });
@@ -166,14 +172,12 @@ document.addEventListener('DOMContentLoaded', () => {
         canvasWrapper.style.width = `${DEFAULT_CANVAS_WIDTH}px`;
         canvasWrapper.style.height = `${DEFAULT_CANVAS_HEIGHT}px`;
 
-        // 初始狀態：顯示就緒提示
         const initialMessage = fontsLoaded 
             ? '👆 請先選擇一張圖片，然後點擊文字進行拖曳'
             : '正在載入字體，請稍候...';
             
         showPlaceholder(initialMessage, false); 
         
-        // 如果字體已載入，且 Canvas 尚未有內容，則顯示就緒提示 (不帶載入動畫)
         if (fontsLoaded) {
             showPlaceholder('👆 請先選擇一張圖片，然後點擊文字進行拖曳', false); 
         }
@@ -182,6 +186,9 @@ document.addEventListener('DOMContentLoaded', () => {
         downloadBtn.disabled = true;
         
         toggleControls(null);
+        
+        // 初始化時確保 textInput 顯示預設提示
+        textInput.value = '請選中 Canvas 上的物件進行編輯';
     }
     
     function addNewTextObject() {
@@ -198,7 +205,6 @@ document.addEventListener('DOMContentLoaded', () => {
             stroke: '#000000',
             strokeWidth: 2,
             
-            // 將位置設定在 Canvas 中央
             left: canvas.width / 2, 
             top: canvas.height / 2,
             textAlign: 'center',
@@ -216,24 +222,19 @@ document.addEventListener('DOMContentLoaded', () => {
         canvas.fire('selection:created', { target: newText }); 
     }
     
-    // [核心修復點] loadImageToCanvas: 新增縮放計算
+    // 核心修復：新增縮放計算 (解決手機爆框)
     function loadImageToCanvas(imgSource) {
         initializeCanvas(); 
         
-        // 載入時，顯示載入動畫
         showPlaceholder('正在載入圖片並初始化...', true);
 
         fabric.Image.fromURL(imgSource, function(img) {
             
             originalImage = img;
             
-            // -----------------------------------------------------
-            // 💡 手機自適應計算邏輯 (核心修正)
-            // -----------------------------------------------------
             const containerWidth = canvasWrapper.clientWidth;
             let scale = 1;
 
-            // 只有當圖片寬度大於容器寬度時，才進行縮放
             if (img.width > containerWidth) {
                 scale = containerWidth / img.width;
             }
@@ -241,33 +242,29 @@ document.addEventListener('DOMContentLoaded', () => {
             const scaledWidth = img.width * scale;
             const scaledHeight = img.height * scale;
             
-            // 1. 設定 Canvas 的實際尺寸（Canvas 內部尺寸，保持原圖像素以供下載）
+            // 1. 設定 Canvas 內部像素尺寸 (高解析度)
             canvas.setDimensions({ 
                 width: img.width, 
                 height: img.height 
             });
 
-            // 2. 設定 Canvas 容器的顯示尺寸（DOM 尺寸，使用縮放後的尺寸適應螢幕）
+            // 2. 設定 Canvas 容器的 DOM 尺寸 (自適應螢幕)
             canvasWrapper.style.width = `${scaledWidth}px`;
             canvasWrapper.style.height = `${scaledHeight}px`;
 
-            // 3. 縮放 Canvas 內容 (縮放所有繪圖內容，使其適應容器大小)
+            // 3. 縮放 Canvas 內容 (在畫面上縮小顯示)
             canvas.setZoom(scale);
-            // -----------------------------------------------------
             
             canvas.setBackgroundImage(img, function() {
                 canvas.renderAll(); 
                 
-                // 載入完成，隱藏提示
                 hidePlaceholder(); 
                 
-                // 載入圖片後，自動新增第一個文字物件
                 addNewTextObject(); 
             
                 downloadBtn.disabled = false;
 
             }, { 
-                // 背景圖不需要額外縮放，因為我們已經縮放了整個 Canvas 
                 scaleX: 1, 
                 scaleY: 1
             });
@@ -275,7 +272,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }, { 
             crossOrigin: 'anonymous', 
             onError: function(err) {
-                // 載入失敗處理
                 showPlaceholder("👆 載入失敗！請確認圖片格式 (PNG/JPG) 及檔案大小 (建議小於 5MB)。", false);
                 console.error("Fabric.js 載入 Base64 數據失敗！", err);
                 downloadBtn.disabled = true;
@@ -295,13 +291,11 @@ document.addEventListener('DOMContentLoaded', () => {
         
         initializeCanvas(); 
 
-        // 顯示載入狀態
         showPlaceholder('正在載入暫存狀態...', true);
 
         canvas.loadFromJSON(json, function() {
             canvas.renderAll();
             
-            // 載入完成，隱藏提示
             hidePlaceholder();
             
             downloadBtn.disabled = false;
@@ -323,7 +317,6 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('請先載入圖片開始編輯！');
             return;
         }
-        // 清除選區，確保 JSON 乾淨
         canvas.discardActiveObject(); 
         canvas.renderAll();
         
@@ -333,7 +326,7 @@ document.addEventListener('DOMContentLoaded', () => {
         alert('編輯狀態已暫存到您的瀏覽器中！');
     }
 
-    // --- 事件監聽器與初始化 (保持不變) ---
+    // --- 事件監聽器與初始化 ---
 
     // 1. [Web Font] 
     document.fonts.ready.then(() => {
@@ -365,16 +358,18 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.readAsDataURL(file);
     });
 
-    // 3. 綁定控制項事件 (略)
+    // 3. 綁定控制項事件 (包括文字輸入)
     [
         textInput, fontFamilyControl, fontSizeControl, fontWeightControl, fontColorControl, 
         textOrientationControl, charSpacingControl, opacityControl 
     ].forEach(control => {
+        // 'input' 事件會在用戶輸入時立即觸發
         control.addEventListener('input', updateActiveObjectProperties);
+        // 'change' 事件在失去焦點時觸發
         control.addEventListener('change', updateActiveObjectProperties);
     });
 
-    // 4. 圖層控制事件 (略)
+    // 4. 圖層控制事件 
     addTextBtn.addEventListener('click', addNewTextObject);
     
     bringToFrontBtn.addEventListener('click', () => {
@@ -396,7 +391,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 5. 刪除按鈕事件處理 (略)
+    // 5. 刪除按鈕事件處理 
     deleteTextBtn.addEventListener('click', () => {
         const activeObject = canvas.getActiveObject();
         if (activeObject && confirm("確定要移除選中的物件嗎？")) {
@@ -420,12 +415,10 @@ document.addEventListener('DOMContentLoaded', () => {
         canvas.discardActiveObject(); 
         canvas.renderAll();
 
-        // 由於 Canvas 內容在畫面上是縮小的 (canvas.setZoom)，
-        // toDataURL 會使用原始尺寸 (img.width/height) 輸出，確保下載是高解析度。
-        
         const format = downloadFormatControl.value; 
         let fileExtension = format.split('/')[1];
 
+        // toDataURL 會使用 Canvas 的內部高解析度尺寸輸出 (不是縮放後的畫面尺寸)
         const dataURL = canvas.toDataURL({
             format: fileExtension,
             quality: fileExtension === 'jpeg' ? 0.9 : 1.0
